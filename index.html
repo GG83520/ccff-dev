@@ -2699,8 +2699,8 @@ function toggleWMS(key) {
       transparent: true,
       version:     '1.3.0',
       opacity:     0.9,
-      // Refresh automatique toutes les 5 minutes (300s) — aligné sur autorefresh CII
-      // Leaflet ne gère pas le refresh natif : on reconstruit la couche
+      tileSize:    512,    // compense le gutter=256 du serveur CII
+      detectRetina: false
     });
     wmsLayers[key].addTo(map);
     wmsVisible[key] = true;
@@ -2712,7 +2712,8 @@ function toggleWMS(key) {
       map.removeLayer(wmsLayers[key]);
       wmsLayers[key] = L.tileLayer.wms(WMS_BASE, {
         layers: cfg.layer, format: 'image/png',
-        transparent: true, version: '1.3.0', opacity: 0.9
+        transparent: true, version: '1.3.0', opacity: 0.9,
+        tileSize: 512, detectRetina: false
       }).addTo(map);
     }, 300000);
   }
