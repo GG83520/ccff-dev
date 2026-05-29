@@ -1,0 +1,2893 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CCFF Var - Surveillance Feux de Forêt</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.css"/>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/MarkerCluster.Default.css"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.min.js"></script>
+<script src="dfci_official.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Barlow', sans-serif;
+    background: #0d1117;
+    color: #e0e0e0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* -- HEADER -- */
+  #header {
+    background: linear-gradient(135deg, #1a1f2e 0%, #151922 100%);
+    border-bottom: 2px solid #e85d26;
+    padding: 0 16px;
+    height: 90px;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    z-index: 1000;
+  }
+  #header-row1 {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 46px;
+    flex-shrink: 0;
+    border-bottom: 1px solid #1e2733;
+  }
+  #header-row2 {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    gap: 8px;
+    padding: 0 4px;
+  }
+
+  #header-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .header-logo {
+    width: 34px;
+    height: 34px;
+    background: #e85d26;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  #header h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #fff;
+  }
+
+  #header h1 span {
+    color: #e85d26;
+  }
+
+  #header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  #clock {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 2px;
+  }
+
+  #date-display {
+    font-size: 11px;
+    color: #8a9bb0;
+    text-align: right;
+    line-height: 1.3;
+  }
+
+  .status-pill {
+    background: #1a3a1a;
+    border: 1px solid #2d7a2d;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #4caf50;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .status-pill::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    background: #4caf50;
+    border-radius: 50%;
+    animation: blink 1.5s infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* -- MAIN LAYOUT -- */
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* -- SIDEBAR -- */
+  #sidebar {
+    width: 280px;
+    background: #13181f;
+    border-right: 1px solid #1e2733;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .sidebar-section {
+    padding: 12px 14px;
+    border-bottom: 1px solid #1e2733;
+  }
+
+  .sidebar-section h3 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #e85d26;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  /* Stats bar */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .stat-card {
+    background: #1a1f2e;
+    border: 1px solid #1e2733;
+    border-radius: 6px;
+    padding: 8px 10px;
+    text-align: center;
+  }
+
+  .stat-card .val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1;
+    color: #fff;
+  }
+
+  .stat-card .val.orange { color: #e85d26; }
+  .stat-card .val.green  { color: #4caf50; }
+  .stat-card .val.blue   { color: #42a5f5; }
+  .stat-card .val.red    { color: #ef5350; }
+
+  .stat-card .lbl {
+    font-size: 10px;
+    color: #6a7a8a;
+    margin-top: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Légende types */
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 0;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+
+  .legend-item:hover { background: #1a2030; padding-left: 4px; }
+
+  .legend-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .legend-text { flex: 1; }
+  .legend-text .name { font-size: 13px; font-weight: 500; }
+  .legend-text .count { font-size: 11px; color: #6a7a8a; }
+
+  /* Filtre secteur */
+  #secteur-filter {
+    width: 100%;
+    background: #1a1f2e;
+    border: 1px solid #2a3040;
+    border-radius: 5px;
+    color: #e0e0e0;
+    padding: 6px 8px;
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* Liste véhicules */
+  #vehicle-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+  }
+
+  #vehicle-list::-webkit-scrollbar { width: 4px; }
+  #vehicle-list::-webkit-scrollbar-thumb { background: #2a3040; border-radius: 2px; }
+
+  .vehicle-item {
+    padding: 8px 14px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: all 0.15s;
+  }
+
+  .vehicle-item:hover {
+    background: #1a1f2e;
+    border-left-color: #e85d26;
+  }
+
+  .vehicle-item.selected {
+    background: #1a2535;
+    border-left-color: #e85d26;
+  }
+
+  .vi-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2px;
+  }
+
+  .vi-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .vi-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 3px;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-4x4   { background: #1a3a1a; color: #4caf50; border: 1px solid #2d7a2d; }
+  .badge-eau   { background: #1a2a3a; color: #42a5f5; border: 1px solid #1a5a8a; }
+  .badge-cmd   { background: #3a1a1a; color: #ef9a9a; border: 1px solid #8a2a2a; }
+
+  .vi-sub { font-size: 11px; color: #6a7a8a; }
+
+  .vi-status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .dot-green  { width: 7px; height: 7px; border-radius: 50%; background: #4caf50; flex-shrink: 0; }
+  .dot-orange { width: 7px; height: 7px; border-radius: 50%; background: #ff9800; flex-shrink: 0; }
+  .dot-gray   { width: 7px; height: 7px; border-radius: 50%; background: #607d8b; flex-shrink: 0; }
+  .dot-red    { width: 7px; height: 7px; border-radius: 50%; background: #ef5350; flex-shrink: 0; }
+
+  /* -- MAP -- */
+  #map-container {
+    flex: 1;
+    position: relative;
+  }
+
+  #map { width: 100%; height: 100%; }
+
+  /* Contrôle fonds de carte */
+  #layer-control {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 900;
+    background: rgba(13,17,23,0.92);
+    border: 1px solid #2a3040;
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    backdrop-filter: blur(6px);
+  }
+
+  .layer-btn {
+    background: #1a1f2e;
+    border: 1px solid #2a3040;
+    border-radius: 5px;
+    color: #8a9bb0;
+    padding: 5px 10px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+
+  .layer-btn:hover { background: #1e2733; color: #fff; }
+  .layer-btn.active { background: #e85d26; border-color: #e85d26; color: #fff; }
+  .layer-btn.disabled { opacity:0.35; cursor:not-allowed; pointer-events:none; color:#4a5570 !important; }
+
+  /* Popup personnalisé */
+  .custom-popup .leaflet-popup-content-wrapper {
+    background: #13181f;
+    border: 1px solid #2a3040;
+    border-radius: 8px;
+    color: #e0e0e0;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+    padding: 0;
+  }
+
+  .custom-popup .leaflet-popup-tip { background: #13181f; }
+  .custom-popup .leaflet-popup-content { margin: 0; }
+
+  .popup-inner { padding: 14px 16px; min-width: 220px; }
+
+  .popup-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #1e2733;
+  }
+
+  .popup-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .popup-title { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; }
+  .popup-sub   { font-size: 11px; color: #6a7a8a; }
+
+  .popup-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    font-size: 12px;
+  }
+
+  .popup-row .lbl { color: #6a7a8a; }
+  .popup-row .val { font-weight: 500; color: #e0e0e0; }
+  .popup-row .val.green { color: #4caf50; }
+  .popup-row .val.orange { color: #ff9800; }
+
+  /* Alerte zone */
+  #alert-bar {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 900;
+    background: rgba(232,93,38,0.15);
+    border: 1px solid #e85d26;
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #e85d26;
+    letter-spacing: 0.5px;
+    backdrop-filter: blur(6px);
+    white-space: nowrap;
+  }
+
+  /* Leaflet overrides */
+  .leaflet-control-zoom a {
+    background: #13181f !important;
+    color: #e0e0e0 !important;
+    border-color: #2a3040 !important;
+  }
+  .leaflet-control-zoom a:hover { background: #1a1f2e !important; }
+
+  /* Labels DFCI */
+  .dfci-label-2km {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-family: 'Barlow Condensed', monospace, sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    color: #ffffff;
+    text-shadow: 0 0 2px #000, 0 0 4px #000, 1px 1px 3px #000, -1px -1px 3px #000;
+    letter-spacing: 0.5px;
+    pointer-events: none;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  .dfci-tooltip {
+    background: rgba(13,17,23,0.9) !important;
+    border: 1px solid #e8a020 !important;
+    color: #e8a020 !important;
+    font-family: 'Barlow Condensed', sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    padding: 3px 8px !important;
+    border-radius: 3px !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5) !important;
+  }
+  .dfci-tooltip::before { border-top-color: #e8a020 !important; }
+
+  .dfci-tooltip-10km {
+    background: rgba(13,17,23,0.85) !important;
+    border: 1px solid #fff !important;
+    color: #fff !important;
+    font-family: 'Barlow Condensed', sans-serif !important;
+    font-size: 15px !important;
+    font-weight: 700 !important;
+    padding: 4px 10px !important;
+    border-radius: 4px !important;
+    letter-spacing: 1px !important;
+  }
+  .leaflet-tooltip-own { pointer-events: none !important; }
+
+  /* Massifs overlay labels */
+  .massif-label {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(255,200,100,0.85);
+    letter-spacing: 1.5px;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7);
+    text-transform: uppercase;
+    pointer-events: none;
+  }
+
+  /* ── RECHERCHE DFCI ── */
+  #header-center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 12px;
+  }
+
+  .dfci-search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .dfci-search-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    border: 1px solid;
+  }
+
+  .dfci-search-label.s1 { color:#ff4444; border-color:#ff4444; background:rgba(255,68,68,0.12); }
+  .dfci-search-label.s2 { color:#4488ff; border-color:#4488ff; background:rgba(68,136,255,0.12); }
+  .dfci-search-label.s3 { color:#ff8800; border-color:#ff8800; background:rgba(255,136,0,0.12); }
+  .dfci-search-label.s4 { color:#aa44ff; border-color:#aa44ff; background:rgba(170,68,255,0.12); }
+  .dfci-search-label.sc { color:#e8a020; border-color:#e8a020; background:rgba(232,160,32,0.12); }
+  .dfci-search-input.sc { width:150px; text-transform:none; letter-spacing:0; }
+  .dfci-search-input.sc:focus { border-color:#e8a020; }
+  .dfci-search-btn.sc { background:#a06810; }
+  .dfci-search-btn.sc:hover { filter:brightness(1.2); }
+
+  .dfci-search-input {
+    width: 148px;
+    background: #2a3245;
+    border: 2px solid #4a5570;
+    border-radius: 5px;
+    color: #ffffff;
+    padding: 5px 8px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    outline: none;
+    transition: border-color 0.2s;
+    box-shadow: inset 0 1px 4px rgba(0,0,0,0.3);
+  }
+  .dfci-search-input.s1:focus { border-color:#ff4444; }
+  .dfci-search-input.s2:focus { border-color:#4488ff; }
+  .dfci-search-input.s3:focus { border-color:#ff8800; }
+  .dfci-search-input.s4:focus { border-color:#aa44ff; }
+  .dfci-search-input::placeholder { color:#7a8aaa; text-transform:none; letter-spacing:0; font-style:italic; font-size:11px; }
+
+  .dfci-search-btn {
+    border: none; border-radius: 5px; color: white;
+    padding: 5px 9px; font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: filter 0.15s; flex-shrink: 0;
+  }
+  .dfci-search-btn.s1 { background:#cc2222; }
+  .dfci-search-btn.s1:hover { filter:brightness(1.2); }
+  .dfci-search-btn.s2 { background:#2255cc; }
+  .dfci-search-btn.s2:hover { filter:brightness(1.2); }
+  .dfci-search-btn.s3 { background:#cc6600; }
+  .dfci-search-btn.s3:hover { filter:brightness(1.2); }
+  .dfci-search-btn.s4 { background:#7722cc; }
+  .dfci-search-btn.s4:hover { filter:brightness(1.2); }
+
+  .dfci-clear-btn {
+    background: #1a1f2e; border: 1px solid #3a4050;
+    border-radius: 5px; color: #8a9bb0;
+    padding: 5px 8px; font-size: 12px;
+    cursor: pointer; transition: all 0.15s; flex-shrink: 0;
+  }
+  .dfci-clear-btn:hover { border-color:#ef5350; color:#ef5350; }
+
+  .dfci-suggestions {
+    position: absolute; left: 0; right: 0; top: 34px;
+    background: #13181f; border: 1px solid #2a3040;
+    border-radius: 5px; z-index: 2000;
+    max-height: 180px; overflow-y: auto;
+    display: none; box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+    min-width: 200px;
+  }
+  .dfci-suggestions::-webkit-scrollbar { width:4px; }
+  .dfci-suggestions::-webkit-scrollbar-thumb { background:#2a3040; }
+  #dfci-search-wrap { display:flex; gap:6px; margin-bottom:0; }
+  #dfci-search-input {
+    flex:1; background:#2a3245; border:2px solid #4a5570;
+    border-radius:5px; color:#ffffff; padding:6px 10px;
+    font-family:'Barlow Condensed',sans-serif; font-size:14px;
+    letter-spacing:1px; text-transform:uppercase; outline:none;
+    transition:border-color 0.2s, background 0.2s;
+    box-shadow: inset 0 1px 4px rgba(0,0,0,0.3);
+  }
+  #dfci-search-input:focus { border-color:#e85d26; background:#323a52; }
+  #dfci-search-input::placeholder { color:#7a8aaa; text-transform:none; letter-spacing:0; font-style:italic; }
+  #dfci-search-btn {
+    background:#e85d26; border:none; border-radius:5px; color:white;
+    padding:6px 12px; font-family:'Barlow Condensed',sans-serif;
+    font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap;
+  }
+  #dfci-search-btn:hover { background:#c94e1e; }
+  #dfci-clear-btn {
+    background: #1a1f2e;
+    border: 1px solid #3a4050;
+    border-radius: 5px;
+    color: #8a9bb0;
+    padding: 6px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  #dfci-clear-btn:hover { border-color:#ef5350; color:#ef5350; }
+  #dfci-suggestions {
+    position:absolute; left:0; right:0; top:38px;
+    background:#13181f; border:1px solid #2a3040; border-radius:5px;
+    z-index:2000; max-height:180px; overflow-y:auto;
+    display:none; box-shadow:0 4px 16px rgba(0,0,0,0.5);
+  }
+  #dfci-suggestions::-webkit-scrollbar { width:4px; }
+  #dfci-suggestions::-webkit-scrollbar-thumb { background:#2a3040; }
+  .dfci-suggestion {
+    padding:7px 12px; cursor:pointer;
+    font-family:'Barlow Condensed',sans-serif; font-size:13px; color:#e0e0e0;
+    border-bottom:1px solid #1e2733;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .dfci-suggestion:hover { background:#1a2535; }
+  .dfci-suggestion:last-child { border-bottom:none; }
+  .dfci-sug-code { color:#e8a020; font-weight:700; letter-spacing:0.5px; }
+  .dfci-sug-type { font-size:10px; color:#6a7a8a; }
+  #dfci-search-result { font-size:10px; color:#6a7a8a; position:absolute; left:0; top:40px; white-space:nowrap; display:none; }
+  .dfci-result-ok  { color:#4caf50 !important; }
+  .dfci-result-err { color:#ef5350 !important; }
+  .dfci-search-marker { background:transparent !important; border:none !important; }
+
+  /* ── F1 : Contour commune ── */
+  .commune-label {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: #ffd166;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7);
+    letter-spacing: 0.5px;
+    pointer-events: none;
+    white-space: nowrap;
+    text-align: center;
+    text-transform: uppercase;
+  }
+
+
+  /* ── MODES DEMO / EXPLOITATION ── */
+  #mode-btn {
+    background: transparent;
+    border: 1px solid #3a4a6a;
+    border-radius: 5px;
+    color: #8a9bb0;
+    padding: 4px 12px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  #mode-btn:hover { border-color: #e85d26; color: #e85d26; }
+  #mode-btn.demo-actif {
+    background: #1a3a1a;
+    border-color: #2d7a2d;
+    color: #4caf50;
+  }
+
+  /* ── CADRES INCIDENTS (overlay droit, zone DEMO) ── */
+  #incidents-panel {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 850;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 300px;
+    pointer-events: none;
+  }
+
+  .incident-card {
+    pointer-events: all;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(255,255,255,0.08);
+    animation: cardIn 0.25s ease;
+  }
+
+  @keyframes cardIn {
+    from { opacity:0; transform: translateX(20px); }
+    to   { opacity:1; transform: translateX(0); }
+  }
+
+  .ic-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
+    font-family: 'Barlow Condensed', sans-serif;
+  }
+
+  .ic-header-left { display: flex; align-items: center; gap: 8px; }
+
+  .ic-slot {
+    font-size: 11px; font-weight: 700;
+    padding: 2px 7px; border-radius: 3px;
+    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(0,0,0,0.25); letter-spacing: 0.5px;
+  }
+
+  .ic-code { font-size: 16px; font-weight: 700; letter-spacing: 1px; color: #fff; }
+
+  .ic-close {
+    background: rgba(0,0,0,0.3); border: none;
+    color: rgba(255,255,255,0.7); border-radius: 4px;
+    width: 22px; height: 22px; cursor: pointer;
+    font-size: 12px; display: flex; align-items: center;
+    justify-content: center; transition: all 0.15s; flex-shrink: 0;
+  }
+  .ic-close:hover { background: rgba(0,0,0,0.5); color: #fff; }
+
+  .ic-commune {
+    font-size: 11px; color: rgba(255,255,255,0.75);
+    padding: 0 10px 6px;
+    font-family: 'Barlow Condensed', sans-serif;
+    letter-spacing: 0.5px; font-style: italic;
+  }
+
+  .ic-body { background: #13181f; padding: 8px 10px; }
+
+  .ic-statuts { display: flex; gap: 6px; margin-bottom: 8px; }
+
+  .ic-select {
+    flex: 1; background: #1a1f2e; border: 1px solid #2a3040;
+    border-radius: 4px; color: #e0e0e0;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px; padding: 4px 6px; cursor: pointer; outline: none;
+    transition: border-color 0.15s;
+  }
+  .ic-select:focus { border-color: #e85d26; }
+
+  .ic-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+
+  .ic-cell {
+    background: #1a1f2e; border: 1px solid #1e2733;
+    border-radius: 4px; padding: 4px 6px;
+  }
+  .ic-cell.full { grid-column: 1 / -1; }
+
+  .ic-cell-label {
+    font-size: 9px; color: #6a7a8a; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 2px;
+    font-family: 'Barlow Condensed', sans-serif;
+  }
+
+  .ic-cell-input {
+    width: 100%; background: transparent; border: none;
+    color: #e0e0e0; font-family: 'Barlow', sans-serif;
+    font-size: 11px; outline: none; padding: 0;
+  }
+  .ic-cell-input::placeholder { color: #3a4a5a; font-style: italic; }
+  .ic-cell-input:focus { color: #fff; }
+
+  .ic-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 10px 7px; background: #13181f;
+    border-top: 1px solid #1e2733;
+    font-size: 10px; color: #4a5a6a;
+    font-family: 'Barlow Condensed', sans-serif;
+  }
+
+  /* Couleurs header selon Statut A */
+  .ic-statut-signale    { background: linear-gradient(135deg, #7a6000, #5a4500); }
+  .ic-statut-confirme   { background: linear-gradient(135deg, #8a3a00, #6a2a00); }
+  .ic-statut-traitement { background: linear-gradient(135deg, #7a1a00, #5a1000); }
+  .ic-statut-encours    { background: linear-gradient(135deg, #1a1a1a, #0a0a0a); border-bottom: 1px solid #333; }
+  .ic-statut-noyage     { background: linear-gradient(135deg, #0a3a6a, #062a5a); }
+  .ic-statut-termine    { background: linear-gradient(135deg, #0a4a0a, #063506); }
+  .ic-statut-default    { background: linear-gradient(135deg, #1a1f2e, #151922); }
+
+  /* ── VIGIES ── */
+  .vigie-icon {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    pointer-events: all;
+  }
+  .vigie-circle-label {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: #ff6600;
+    text-shadow: 0 1px 3px #000, 0 0 6px #000;
+    pointer-events: none;
+    white-space: nowrap;
+    text-align: center;
+  }
+
+  /* ── Collapse cadres incidents ── */
+  .incident-card.collapsed .ic-body    { display: none; }
+  .incident-card .ic-header            { cursor: pointer; user-select: none; }
+  .ic-toggle-icon                      { font-size: 10px; margin-left: 4px; color: rgba(255,255,255,0.6); display: inline-block; transition: transform 0.2s; }
+  .incident-card.collapsed .ic-toggle-icon { transform: rotate(-90deg); }
+
+  /* ── PIN ENTREE — protection accès carto ── */
+  #pin-entree-overlay {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    background: #0d1117;
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  #pin-entree-overlay.hidden { display: none; }
+  #pin-entree-box {
+    background: #13181f;
+    border: 1px solid #e85d26;
+    border-radius: 12px;
+    padding: 36px 40px;
+    text-align: center;
+    box-shadow: 0 8px 40px rgba(232,93,38,0.3);
+    min-width: 300px;
+  }
+  #pin-entree-box .logo {
+    font-size: 40px; margin-bottom: 12px;
+  }
+  #pin-entree-box h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px; font-weight: 700;
+    color: #e85d26; margin-bottom: 4px; letter-spacing: 1px;
+  }
+  #pin-entree-box .subtitle {
+    font-size: 12px; color: #6a7a8a; margin-bottom: 24px;
+    font-family: 'Barlow Condensed', sans-serif; letter-spacing: 0.5px;
+  }
+  #pin-entree-input {
+    width: 160px;
+    background: #2a3245;
+    border: 2px solid #4a5570;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 28px;
+    font-family: 'Barlow Condensed', sans-serif;
+    letter-spacing: 10px;
+    text-align: center;
+    padding: 10px 14px;
+    outline: none;
+    margin-bottom: 16px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    transition: border-color 0.2s;
+  }
+  #pin-entree-input:focus { border-color: #e85d26; }
+  #pin-entree-error {
+    font-size: 12px; color: #ef5350;
+    min-height: 18px; margin-bottom: 12px;
+    font-family: 'Barlow Condensed', sans-serif;
+  }
+  #pin-entree-btn {
+    background: #e85d26; border: none; border-radius: 6px;
+    color: white; padding: 10px 32px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    letter-spacing: 1px; transition: background 0.15s;
+  }
+  #pin-entree-btn:hover { background: #c94e1e; }
+
+  /* PIN overlay */
+  #pin-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+  }
+  #pin-overlay.visible { display: flex; }
+  #pin-box {
+    background: #13181f;
+    border: 1px solid #2a3040;
+    border-radius: 10px;
+    padding: 28px 32px;
+    text-align: center;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+    min-width: 260px;
+  }
+  #pin-box h2 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px; font-weight: 700;
+    color: #e85d26; margin-bottom: 6px;
+  }
+  #pin-box p { font-size: 12px; color: #6a7a8a; margin-bottom: 16px; }
+  #pin-input {
+    width: 140px;
+    background: #2a3245;
+    border: 2px solid #4a5570;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 24px;
+    font-family: 'Barlow Condensed', sans-serif;
+    letter-spacing: 8px;
+    text-align: center;
+    padding: 8px 12px;
+    outline: none;
+    margin-bottom: 14px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  #pin-input:focus { border-color: #e85d26; }
+  #pin-error {
+    font-size: 11px; color: #ef5350;
+    min-height: 16px; margin-bottom: 10px;
+  }
+  .pin-actions { display: flex; gap: 8px; justify-content: center; }
+  .pin-btn {
+    padding: 7px 20px;
+    border-radius: 5px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px; font-weight: 700;
+    cursor: pointer; border: none;
+  }
+  .pin-btn-ok     { background: #e85d26; color: white; }
+  .pin-btn-ok:hover { background: #c94e1e; }
+  .pin-btn-cancel { background: #1a1f2e; color: #8a9bb0; border: 1px solid #2a3040; }
+  .pin-btn-cancel:hover { border-color: #e85d26; color: #e85d26; }
+
+</style>
+</head>
+<body>
+
+<!-- PIN ENTREE — protection accès carto -->
+<div id="pin-entree-overlay">
+  <div id="pin-entree-box">
+    <div class="logo">🔥</div>
+    <h2>CCFF VAR — SURVEILLANCE</h2>
+    <div class="subtitle">ACCÈS SÉCURISÉ — SAISIR LE CODE</div>
+    <input id="pin-entree-input" type="password" inputmode="numeric"
+           maxlength="4" placeholder="••••"
+           onkeydown="if(event.key==='Enter') pinEntreeValider()"/>
+    <div id="pin-entree-error"></div>
+    <button id="pin-entree-btn" onclick="pinEntreeValider()">ENTRER</button>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div id="header">
+  <!-- Ligne 1 : Titre + Mode + Horloge -->
+  <div id="header-row1">
+    <div id="header-left">
+      <div class="header-logo">🔥</div>
+      <h1>CCFF VAR - <span>SURVEILLANCE FEUX DE FORÊT</span></h1>
+    </div>
+    <div id="header-right">
+      <button id="mode-btn" onclick="toggleModeDemo()">&#9881; MODE DEMO</button>
+      <div class="status-pill" id="proto-pill">PROTOTYPE &#8226; DONNEES SIMULEES</div>
+      <div>
+        <div id="clock">--:--:--</div>
+        <div id="date-display">Chargement...</div>
+      </div>
+    </div>
+  </div>
+  <!-- Ligne 2 : S1 S2 S3 S4 + Commune -->
+  <div id="header-row2">
+    <div class="dfci-search-box">
+      <span class="dfci-search-label s1">S1</span>
+      <input class="dfci-search-input s1" id="dfci-input-1" type="text"
+             placeholder="LD42G6 ou .2" maxlength="12"
+             autocomplete="off" autocorrect="off" spellcheck="false"/>
+      <button class="dfci-search-btn s1" onclick="dfciSearch(1)">GO</button>
+      <button class="dfci-clear-btn" onclick="dfciClear(1)" title="Effacer S1">&#10005;</button>
+      <div class="dfci-suggestions" id="dfci-sugg-1"></div>
+    </div>
+    <div class="dfci-search-box">
+      <span class="dfci-search-label s2">S2</span>
+      <input class="dfci-search-input s2" id="dfci-input-2" type="text"
+             placeholder="LD42G6 ou .2" maxlength="12"
+             autocomplete="off" autocorrect="off" spellcheck="false"/>
+      <button class="dfci-search-btn s2" onclick="dfciSearch(2)">GO</button>
+      <button class="dfci-clear-btn" onclick="dfciClear(2)" title="Effacer S2">&#10005;</button>
+      <div class="dfci-suggestions" id="dfci-sugg-2"></div>
+    </div>
+    <div class="dfci-search-box">
+      <span class="dfci-search-label s3">S3</span>
+      <input class="dfci-search-input s3" id="dfci-input-3" type="text"
+             placeholder="LD42G6 ou .2" maxlength="12"
+             autocomplete="off" autocorrect="off" spellcheck="false"/>
+      <button class="dfci-search-btn s3" onclick="dfciSearch(3)">GO</button>
+      <button class="dfci-clear-btn" onclick="dfciClear(3)" title="Effacer S3">&#10005;</button>
+      <div class="dfci-suggestions" id="dfci-sugg-3"></div>
+    </div>
+    <div class="dfci-search-box">
+      <span class="dfci-search-label s4">S4</span>
+      <input class="dfci-search-input s4" id="dfci-input-4" type="text"
+             placeholder="LD42G6 ou .2" maxlength="12"
+             autocomplete="off" autocorrect="off" spellcheck="false"/>
+      <button class="dfci-search-btn s4" onclick="dfciSearch(4)">GO</button>
+      <button class="dfci-clear-btn" onclick="dfciClear(4)" title="Effacer S4">&#10005;</button>
+      <div class="dfci-suggestions" id="dfci-sugg-4"></div>
+    </div>
+    <div style="width:1px;height:22px;background:#2a3040;flex-shrink:0;margin:0 2px;"></div>
+    <!-- Recherche Commune -->
+    <div class="dfci-search-box" id="commune-search-box">
+      <span class="dfci-search-label sc">🏘</span>
+      <input class="dfci-search-input sc" id="commune-input" type="text"
+             placeholder="Commune (Var)…" maxlength="60"
+             autocomplete="off" autocorrect="off" spellcheck="false"/>
+      <button class="dfci-search-btn sc" onclick="communeSearch()">GO</button>
+      <button class="dfci-clear-btn" onclick="communeClear()" title="Effacer commune">&#10005;</button>
+      <div class="dfci-suggestions" id="commune-sugg"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+
+    <!-- Stats -->
+    <div class="sidebar-section">
+      <h3>État de la flotte</h3>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="val orange" id="stat-total">20</div>
+          <div class="lbl">Véhicules</div>
+        </div>
+        <div class="stat-card">
+          <div class="val green" id="stat-actif">14</div>
+          <div class="lbl">En patrouille</div>
+        </div>
+        <div class="stat-card">
+          <div class="val blue" id="stat-attente">4</div>
+          <div class="lbl">En attente</div>
+        </div>
+        <div class="stat-card">
+          <div class="val red" id="stat-hs">2</div>
+          <div class="lbl">Hors service</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Légende types -->
+    <div class="sidebar-section">
+      <h3>Types de véhicules</h3>
+      <div class="legend-item">
+        <div class="legend-icon" style="background:#1a3a1a;">🚙</div>
+        <div class="legend-text">
+          <div class="name" style="color:#4caf50;">4x4 / VLTT</div>
+          <div class="count">12 véhicules</div>
+        </div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-icon" style="background:#1a2a3a;">🚒</div>
+        <div class="legend-text">
+          <div class="name" style="color:#42a5f5;">Porteur d'eau / CCF</div>
+          <div class="count">6 véhicules</div>
+        </div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-icon" style="background:#3a1a1a;">\u2B50</div>
+        <div class="legend-text">
+          <div class="name" style="color:#ef9a9a;">Commandement</div>
+          <div class="count">2 véhicules</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtre secteur -->
+    <div class="sidebar-section">
+      <h3>Filtrer par secteur</h3>
+      <select id="secteur-filter" onchange="filterBySecteur(this.value)">
+        <option value="tous">- Tous les secteurs -</option>
+        <option value="Monts Toulonnais">1 - Monts Toulonnais</option>
+        <option value="Sainte-Baume">2 - Sainte-Baume</option>
+        <option value="Haut-Var">3 - Haut-Var</option>
+        <option value="Corniche des Maures">4 - Corniche des Maures</option>
+        <option value="Maures">5 - Maures</option>
+        <option value="Centre-Var">6 - Centre-Var</option>
+        <option value="Plateau de Canjuers">7 - Plateau de Canjuers</option>
+        <option value="Esterel">8 - Esterel</option>
+        <option value="Iles d'Hyeres">9 - Iles d'Hyeres</option>
+      </select>
+    </div>
+
+    <!-- Liste véhicules -->
+    <div id="vehicle-list"></div>
+
+  </div>
+
+  <!-- MAP -->
+  <div id="map-container">
+    <div id="map"></div>
+
+    <!-- Sélecteur fonds de carte -->
+    <div id="layer-control">
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:#6a7a8a;letter-spacing:1px;padding:2px 4px 6px;">FOND DE CARTE</div>
+      <button class="layer-btn active" onclick="setLayer('osm')">🗺 OpenStreetMap</button>
+      <button class="layer-btn" onclick="setLayer('osm-topo')">🏔 Topo (OpenTopoMap)</button>
+      <button class="layer-btn" onclick="setLayer('satellite')">🛰 Satellite Esri</button>
+      <button class="layer-btn" onclick="setLayer('esri-topo')">🗾 Topo Esri</button>
+      <div style="border-top:1px solid #2a3040;margin:4px 0;"></div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:#6a7a8a;letter-spacing:1px;padding:2px 4px 4px;">COUCHES</div>
+      <button class="layer-btn disabled" id="btn-massifs" title="Couche temporairement désactivée">🌲 Massifs forestiers</button>
+      <button class="layer-btn disabled" id="btn-dfci" title="Couche en cours de refonte">📐 Carroyage DFCI</button>
+      <button class="layer-btn" id="btn-dfci-ign" onclick="toggleDFCI_IGN()">🛰 DFCI IGN (WMTS)</button>
+      <button class="layer-btn" id="btn-vigies" onclick="toggleVigies()">📡 Vigies CCFF</button>
+      <button class="layer-btn" id="btn-vigies-visu" onclick="toggleVisuVigies()" style="display:none;">👁 Cercles de visu</button>
+    </div>
+
+    <!-- Cadres Incidents — zone DEMO -->
+    <div id="incidents-panel"></div>
+
+    <div id="alert-bar">⚡ PROTOTYPE - Positions simulées - Rafraîchissement : 30s</div>
+  </div>
+
+</div>
+
+<script>
+// --- BROADCASTCHANNEL — déclaré EN PREMIER pour être prêt immédiatement ------
+var ccffChannel = null;
+var marqueursPatrouilles = {};
+
+try {
+  ccffChannel = new BroadcastChannel('ccff-var');
+  console.log('[BC] Canal ccff-var ouvert');
+  ccffChannel.onmessage = function(evt) {
+    var msg = evt.data;
+    console.log('[BC] Message reçu:', msg && msg.type);
+    if (!msg || !msg.type) return;
+    if (msg.type === 'gestion-ready' || msg.type === 'ping-gestion') {
+      diffuserStatsVehicules();
+      ccffChannel.postMessage({ type: 'ping', source: 'carte' });
+    }
+    if (msg.type === 'patrouilles-update') {
+      console.log('[F4] patrouilles-update reçu:', msg.patrouilles);
+      afficherMarqueursPatrouilles(msg.patrouilles || []);
+    }
+  };
+} catch(e) {
+  console.warn('[BC] BroadcastChannel non supporté:', e);
+}
+
+// --- DONNÉES VÉHICULES SIMULÉS -----------------------------------------------
+const vehicules = [
+  // 4x4 / VLTT (vert)
+  { id:1,  nom:'VL-83-001', type:'4x4',  secteur:'Maures',      lat:43.330, lng:6.420, statut:'patrouille', vitesse:38, equipe:'Bernard / Roux',      heure:'14:18' },
+  { id:2,  nom:'VL-83-002', type:'4x4',  secteur:'Maures',      lat:43.288, lng:6.389, statut:'patrouille', vitesse:22, equipe:'Martin / Dupont',     heure:'14:21' },
+  { id:3,  nom:'VL-83-003', type:'4x4',  secteur:'Maures',      lat:43.350, lng:6.510, statut:'attente',    vitesse:0,  equipe:'Fabre / Girard',      heure:'14:15' },
+  { id:4,  nom:'VL-83-004', type:'4x4',  secteur:'Esterel',     lat:43.470, lng:6.850, statut:'patrouille', vitesse:45, equipe:'Blanc / Morel',       heure:'14:22' },
+  { id:5,  nom:'VL-83-005', type:'4x4',  secteur:'Esterel',     lat:43.515, lng:6.780, statut:'patrouille', vitesse:31, equipe:'Petit / Garnier',     heure:'14:20' },
+  { id:6,  nom:'VL-83-006', type:'4x4',  secteur:'Esterel',     lat:43.490, lng:6.920, statut:'patrouille', vitesse:28, equipe:'Lefebvre / Simon',    heure:'14:19' },
+  { id:7,  nom:'VL-83-007', type:'4x4',  secteur:'Sainte-Baume',lat:43.320, lng:5.790, statut:'patrouille', vitesse:19, equipe:'Laurent / Michel',    heure:'14:23' },
+  { id:8,  nom:'VL-83-008', type:'4x4',  secteur:'Sainte-Baume',lat:43.355, lng:5.850, statut:'attente',    vitesse:0,  equipe:'Leroy / Moreau',      heure:'14:10' },
+  { id:9,  nom:'VL-83-009', type:'4x4',  secteur:'Haut-Var',   lat:43.565, lng:6.030, statut:'patrouille', vitesse:33, equipe:'David / Robert',      heure:'14:21' },
+  { id:10, nom:'VL-83-010', type:'4x4',  secteur:'Centre-Var',      lat:43.420, lng:6.110, statut:'patrouille', vitesse:52, equipe:'Thomas / Richard',    heure:'14:22' },
+  { id:11, nom:'VL-83-011', type:'4x4',  secteur:'Centre-Var',      lat:43.390, lng:5.970, statut:'hs',         vitesse:0,  equipe:'-',                   heure:'11:30' },
+  { id:12, nom:'VL-83-012', type:'4x4',  secteur:'Maures',      lat:43.265, lng:6.340, statut:'patrouille', vitesse:27, equipe:'Durand / Bertrand',   heure:'14:20' },
+
+  // Porteurs d'eau / CCF (bleu)
+  { id:13, nom:'CCF-83-01', type:'eau',  secteur:'Maures',      lat:43.305, lng:6.460, statut:'patrouille', vitesse:18, equipe:'Mercier / Chevalier', heure:'14:17' },
+  { id:14, nom:'CCF-83-02', type:'eau',  secteur:'Esterel',     lat:43.455, lng:6.800, statut:'patrouille', vitesse:15, equipe:'Fournier / Rousseau', heure:'14:21' },
+  { id:15, nom:'CCF-83-03', type:'eau',  secteur:'Sainte-Baume',lat:43.340, lng:5.820, statut:'attente',    vitesse:0,  equipe:'Vincent / Morin',     heure:'14:05' },
+  { id:16, nom:'CCF-83-04', type:'eau',  secteur:'Haut-Var',   lat:43.545, lng:6.060, statut:'patrouille', vitesse:12, equipe:'Leclerc / Simon',     heure:'14:19' },
+  { id:17, nom:'CCF-83-05', type:'eau',  secteur:'Centre-Var',      lat:43.440, lng:6.050, statut:'attente',    vitesse:0,  equipe:'Gérard / André',      heure:'14:08' },
+  { id:18, nom:'CCF-83-06', type:'eau',  secteur:'Maures',      lat:43.275, lng:6.500, statut:'hs',         vitesse:0,  equipe:'-',                   heure:'10:45' },
+
+  // Commandement (rouge)
+  { id:19, nom:'VPC-83-01', type:'cmd',  secteur:'Maures',      lat:43.315, lng:6.550, statut:'patrouille', vitesse:0,  equipe:'Cdt. Arnaud',         heure:'14:23' },
+  { id:20, nom:'VPC-83-02', type:'cmd',  secteur:'Esterel',     lat:43.480, lng:6.860, statut:'patrouille', vitesse:0,  equipe:'Cdt. Legrand',        heure:'14:22' },
+];
+
+// --- MASSIFS FORESTIERS DU VAR - 9 massifs officiels (Annexe 2) ---------------
+const massifs = [
+  {
+    nom: '1 - Monts Toulonnais',
+    couleur: '#8B4513',
+    coords: [
+      [43.200,5.850],[43.180,5.920],[43.120,5.950],[43.080,6.000],
+      [43.090,6.080],[43.120,6.120],[43.160,6.150],[43.200,6.130],
+      [43.240,6.080],[43.260,6.020],[43.240,5.950],[43.220,5.880],
+      [43.200,5.850]
+    ]
+  },
+  {
+    nom: '2 - Sainte-Baume',
+    couleur: '#2E8B57',
+    coords: [
+      [43.260,5.700],[43.220,5.750],[43.200,5.850],[43.220,5.880],
+      [43.240,5.950],[43.300,5.980],[43.340,5.950],[43.380,5.900],
+      [43.400,5.850],[43.380,5.780],[43.340,5.720],[43.300,5.690],
+      [43.260,5.700]
+    ]
+  },
+  {
+    nom: '3 - Haut-Var',
+    couleur: '#6B8E23',
+    coords: [
+      [43.400,5.700],[43.350,5.720],[43.300,5.690],[43.260,5.700],
+      [43.220,5.750],[43.200,5.850],[43.180,5.920],[43.200,6.000],
+      [43.240,6.080],[43.300,6.100],[43.360,6.080],[43.420,6.050],
+      [43.480,6.020],[43.520,5.980],[43.540,5.900],[43.520,5.820],
+      [43.480,5.760],[43.440,5.720],[43.400,5.700]
+    ]
+  },
+  {
+    nom: '4 - Corniche des Maures',
+    couleur: '#CD853F',
+    coords: [
+      [43.200,6.300],[43.160,6.350],[43.130,6.420],[43.110,6.500],
+      [43.120,6.580],[43.150,6.650],[43.200,6.700],[43.250,6.680],
+      [43.280,6.620],[43.290,6.540],[43.270,6.460],[43.240,6.390],
+      [43.210,6.340],[43.200,6.300]
+    ]
+  },
+  {
+    nom: '5 - Maures',
+    couleur: '#228B22',
+    coords: [
+      [43.380,6.100],[43.320,6.120],[43.260,6.150],[43.220,6.200],
+      [43.200,6.300],[43.210,6.340],[43.240,6.390],[43.270,6.460],
+      [43.290,6.540],[43.320,6.580],[43.360,6.600],[43.400,6.580],
+      [43.440,6.540],[43.460,6.480],[43.450,6.400],[43.420,6.320],
+      [43.410,6.240],[43.400,6.170],[43.380,6.100]
+    ]
+  },
+  {
+    nom: '6 - Centre-Var',
+    couleur: '#DAA520',
+    coords: [
+      [43.480,5.980],[43.420,6.000],[43.380,6.050],[43.360,6.080],
+      [43.380,6.100],[43.400,6.170],[43.410,6.240],[43.420,6.320],
+      [43.450,6.400],[43.480,6.420],[43.520,6.380],[43.550,6.320],
+      [43.560,6.240],[43.540,6.160],[43.520,6.080],[43.500,6.020],
+      [43.480,5.980]
+    ]
+  },
+  {
+    nom: '7 - Plateau de Canjuers',
+    couleur: '#4682B4',
+    coords: [
+      [43.620,6.200],[43.580,6.180],[43.540,6.160],[43.520,6.080],
+      [43.500,6.020],[43.480,5.980],[43.440,5.960],[43.400,5.940],
+      [43.380,5.900],[43.360,5.860],[43.380,5.800],[43.420,5.760],
+      [43.480,5.760],[43.540,5.820],[43.580,5.900],[43.620,5.980],
+      [43.660,6.040],[43.680,6.120],[43.660,6.180],[43.620,6.200]
+    ]
+  },
+  {
+    nom: '8 - Esterel',
+    couleur: '#B22222',
+    coords: [
+      [43.480,6.680],[43.440,6.700],[43.400,6.720],[43.380,6.780],
+      [43.400,6.850],[43.430,6.920],[43.460,6.980],[43.500,7.020],
+      [43.540,6.980],[43.560,6.920],[43.550,6.840],[43.530,6.770],
+      [43.510,6.720],[43.480,6.680]
+    ]
+  },
+  {
+    nom: "9 - Iles d'Hyeres",
+    couleur: '#20B2AA',
+    coords: [
+      [43.020,6.320],[43.000,6.380],[42.990,6.460],[43.010,6.520],
+      [43.040,6.480],[43.060,6.400],[43.050,6.340],[43.020,6.320]
+    ]
+  }
+];
+
+// --- INIT CARTE ---------------------------------------------------------------
+const map = L.map('map', {
+  center: [43.38, 6.22],
+  zoom: 10,
+  zoomControl: true,
+  attributionControl: false
+});
+
+// Fonds de carte - tuiles 100% publiques (fonctionnent en file:// sans clé API)
+const layers = {
+  'osm': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }),
+  'osm-topo': L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17,
+    attribution: '© OpenTopoMap (CC-BY-SA)'
+  }),
+  'satellite': L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 19, attribution: '© Esri World Imagery' }
+  ),
+  'esri-topo': L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 19, attribution: '© Esri World Topo' }
+  )
+};
+
+let currentLayer = layers['osm'].addTo(map);
+let currentLayerKey = 'osm';
+
+// --- LAYER SWITCHER ----------------------------------------------------------
+function setLayer(key) {
+  map.removeLayer(currentLayer);
+  currentLayer = layers[key].addTo(map);
+  currentLayerKey = key;
+  if (massifLayer) massifLayer.bringToFront();
+  document.querySelectorAll('.layer-btn').forEach((btn,i) => {
+    if (i < 4) btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${key}'`));
+  });
+}
+
+// --- MASSIFS -----------------------------------------------------------------
+let massifLayer = null;
+let massifVisible = false;
+
+function toggleMassifs() {
+  const btn = document.getElementById('btn-massifs');
+  if (massifVisible) {
+    if (massifLayer) map.removeLayer(massifLayer);
+    massifLayer = null;
+    massifVisible = false;
+    btn.classList.remove('active');
+  } else {
+    massifLayer = L.layerGroup();
+    massifs.forEach(m => {
+      L.polygon(m.coords, {
+        color: m.couleur, weight: 2,
+        fillColor: m.couleur, fillOpacity: 0.18,
+        dashArray: '4,4'
+      }).bindPopup(`<b style="color:${m.couleur}">${m.nom}</b>`).addTo(massifLayer);
+      const center = m.coords.reduce((a,c) => [a[0]+c[0]/m.coords.length, a[1]+c[1]/m.coords.length], [0,0]);
+      L.marker(center, {
+        icon: L.divIcon({ className: 'massif-label', html: m.nom, iconSize: null, iconAnchor: null })
+      }).addTo(massifLayer);
+    });
+    massifLayer.addTo(map);
+    massifVisible = true;
+    btn.classList.add('active');
+  }
+}
+
+// --- CARROYAGE DFCI ----------------------------------------------------------
+var dfciLayer   = null;
+var dfciVisible = false;
+
+function buildDFCILayer() {
+  var lg = L.layerGroup();
+  var zoom = map.getZoom();
+
+  if (zoom >= 12) {
+    // Mailles 2km avec popup subdivision 1km au clic
+    if (typeof DFCI_2KM !== 'undefined' && DFCI_2KM !== null) {
+      L.geoJSON(DFCI_2KM, {
+        style: function() {
+          return { color:'#e8a020', weight:1.2, fillOpacity:0, opacity:0.75 };
+        },
+        onEachFeature: function(feature, layer) {
+          var code = feature.properties.c;
+          var cx   = feature.properties.cx;
+          var cy   = feature.properties.cy;
+          // Label centré
+          if (cx && cy) {
+            L.marker([cy, cx], {
+              icon: L.divIcon({
+                className: 'dfci-label-2km',
+                html: code,
+                iconSize: [70,14], iconAnchor: [35,7]
+              }),
+              interactive: false, keyboard: false
+            }).addTo(lg);
+          }
+          // Clic : detecter la zone 1km selon position exacte du clic
+          layer.on('click', function(e) {
+            var clickLat = e.latlng.lat;
+            var clickLon = e.latlng.lng;
+            var bounds   = layer.getBounds();
+            var minLat   = bounds.getSouth();
+            var maxLat   = bounds.getNorth();
+            var minLon   = bounds.getWest();
+            var maxLon   = bounds.getEast();
+            var midLat   = (minLat + maxLat) / 2;
+            var midLon   = (minLon + maxLon) / 2;
+
+            // Zone centrale = 33% autour du centre
+            var marginLat = (maxLat - minLat) * 0.25;
+            var marginLon = (maxLon - minLon) * 0.25;
+            var isCenter  = (clickLat > midLat - marginLat && clickLat < midLat + marginLat &&
+                             clickLon > midLon - marginLon && clickLon < midLon + marginLon);
+
+            var zone, label, color;
+            if (isCenter) {
+              zone  = '.5';
+              label = 'Centre';
+              color = '#ffc832';
+            } else if (clickLat >= midLat && clickLon <= midLon) {
+              zone  = '.1';
+              label = 'Haut Gauche';
+              color = '#e8a020';
+            } else if (clickLat >= midLat && clickLon > midLon) {
+              zone  = '.2';
+              label = 'Haut Droit';
+              color = '#e8a020';
+            } else if (clickLat < midLat && clickLon <= midLon) {
+              zone  = '.4';
+              label = 'Bas Gauche';
+              color = '#e8a020';
+            } else {
+              zone  = '.3';
+              label = 'Bas Droit';
+              color = '#e8a020';
+            }
+
+            var zoneCode = code + zone;
+            var html =
+              '<div style="text-align:center;padding:4px 0;">' +
+              '<div style="font-size:22px;font-weight:700;color:' + color + ';letter-spacing:1px;margin-bottom:4px;">' + zoneCode + '</div>' +
+              '<div style="font-size:12px;color:#8a9bb0;margin-bottom:8px;">' + label + ' - 1km x 1km</div>' +
+              '<div style="font-size:10px;color:#4a5a6a;border-top:1px solid #2a3040;padding-top:6px;">' + code + ' (carreau 2km)</div>' +
+              '</div>';
+            L.popup({ className:'custom-popup', maxWidth:200 })
+              .setLatLng(e.latlng)
+              .setContent(html)
+              .openOn(map);
+          });
+        }
+      }).addTo(lg);
+    }
+
+  } else {
+    // Zoom large : mailles 20km
+    if (typeof DFCI_20KM !== 'undefined') {
+      L.geoJSON(DFCI_20KM, {
+        style: function() {
+          return { color:'#e8a020', weight:2.5, fillOpacity:0.05, fillColor:'#e8a020', opacity:0.9 };
+        },
+        onEachFeature: function(feature, layer) {
+          var code = feature.properties.c;
+          layer.bindTooltip(code, {permanent:true, direction:'center', className:'dfci-tooltip-10km'});
+        }
+      }).addTo(lg);
+    }
+  }
+  return lg;
+}
+function toggleDFCI() {
+  var btn = document.getElementById('btn-dfci');
+  if (dfciVisible) {
+    if (dfciLayer) map.removeLayer(dfciLayer);
+    dfciLayer = null;
+    dfciVisible = false;
+    btn.classList.remove('active');
+  } else {
+    dfciLayer = buildDFCILayer();
+    dfciLayer.addTo(map);
+    dfciVisible = true;
+    btn.classList.add('active');
+  }
+}
+
+// --- VIGIES CCFF VAR --------------------------------------------------------
+var VIGIES_DATA = [
+  { nom:'BAGNOLS-EN-FORET',   lat:43.548342, lon:6.701758,  dfci:'LD44G4.3' },
+  { nom:'BARGUEMON',          lat:43.608,    lon:6.546944,  dfci:'LD44A7.4' },
+  { nom:'DRAGUIGNAN',         lat:43.557222, lon:6.4625,    dfci:'LD24G4.3' },
+  { nom:'FIGANIERES',         lat:43.570556, lon:6.523333,  dfci:'LD24L4.1' },
+  { nom:'GONFARON',           lat:43.326778, lon:6.286694,  dfci:'LD22A0.1' },
+  { nom:'HYERES',             lat:43.1325,   lon:6.120556,  dfci:'LC08E9.1' },
+  { nom:'LE MUY',             lat:43.453889, lon:6.572778,  dfci:'LD42B8.5' },
+  { nom:'LE PRADET',          lat:43.088056, lon:6.040056,  dfci:'LC08B7.4' },
+  { nom:'RAMATUELLE',         lat:43.186389, lon:6.635556,  dfci:'LD40E3.2' },
+  { nom:'RIANS',              lat:43.597889, lon:5.738417,  dfci:'KD64H4.1' },
+  { nom:'ROCBARON',           lat:43.318333, lon:6.081944,  dfci:'LD02C0.4' },
+  { nom:'ST JULIEN LE MONT',  lat:43.691111, lon:5.9075,    dfci:'KD86E0.4' },
+  { nom:'ST PAUL EN FORET',   lat:43.563333, lon:6.720278,  dfci:'LD44H5.4' },
+  { nom:'ST RAPHAEL',         lat:43.431044, lon:6.818817,  dfci:'LD62B7.2' },
+  { nom:'STE MAXIME',         lat:43.365278, lon:6.6125,    dfci:'LD42D3.1' },
+  { nom:'SEILLANS',           lat:43.619697, lon:6.5995,    dfci:'LD44C7.1' },
+  { nom:'SIX FOURS',          lat:43.053292, lon:5.847347,  dfci:'KC88D4.1' },
+  { nom:'SOLLIES PONT',       lat:43.203278, lon:6.036694,  dfci:'LD00A3.5' },
+  { nom:'TAVERNES',           lat:43.613692, lon:6.014483,  dfci:'KD84K6.5' },
+  { nom:'LE THORONET',        lat:43.432147, lon:6.301933,  dfci:'LD22A8.4' },
+  { nom:'VARAGES ST MARTIN',  lat:43.577889, lon:5.9145,    dfci:'KD84E4.3' }
+];
+
+var vigiesLayer    = null;
+var vigiesVisible  = false;
+var visuLayer      = null;
+var visuVisible    = false;
+
+// Icône antenne SVG (orange, adaptée surveillance feux)
+function makeVigieIcon() {
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">'
+    // Mât
+    + '<line x1="14" y1="34" x2="14" y2="12" stroke="#ff6600" stroke-width="2.5" stroke-linecap="round"/>'
+    // Bras horizontaux antenne
+    + '<line x1="6"  y1="16" x2="22" y2="16" stroke="#ff6600" stroke-width="2" stroke-linecap="round"/>'
+    + '<line x1="8"  y1="20" x2="20" y2="20" stroke="#ff6600" stroke-width="1.8" stroke-linecap="round"/>'
+    + '<line x1="10" y1="24" x2="18" y2="24" stroke="#ff6600" stroke-width="1.5" stroke-linecap="round"/>'
+    // Signal ondes
+    + '<path d="M6,8 Q14,2 22,8" stroke="#ff6600" stroke-width="1.5" fill="none" opacity="0.7"/>'
+    + '<path d="M2,5 Q14,-3 26,5" stroke="#ff6600" stroke-width="1.2" fill="none" opacity="0.4"/>'
+    // Point central
+    + '<circle cx="14" cy="12" r="3" fill="#ff6600"/>'
+    + '<circle cx="14" cy="12" r="1.5" fill="#fff"/>'
+    + '</svg>';
+  return L.divIcon({
+    html: svg,
+    className: 'vigie-icon',
+    iconSize: [28, 36],
+    iconAnchor: [14, 34],
+    popupAnchor: [0, -34]
+  });
+}
+
+function toggleVigies() {
+  var btn    = document.getElementById('btn-vigies');
+  var btnVisu = document.getElementById('btn-vigies-visu');
+  if (vigiesVisible) {
+    if (vigiesLayer) map.removeLayer(vigiesLayer);
+    vigiesLayer = null;
+    vigiesVisible = false;
+    btn.classList.remove('active');
+    // Masquer aussi les cercles si affichés
+    if (visuVisible) toggleVisuVigies();
+    if (btnVisu) btnVisu.style.display = 'none';
+  } else {
+    vigiesLayer = L.layerGroup();
+    VIGIES_DATA.forEach(function(v) {
+      var marker = L.marker([v.lat, v.lon], { icon: makeVigieIcon() });
+      var popup = '<div class="popup-inner" style="min-width:200px;">'
+        + '<div class="popup-header">'
+        + '<div class="popup-icon" style="background:#3a1f00;font-size:18px;">📡</div>'
+        + '<div>'
+        + '<div class="popup-title" style="color:#ff6600;">' + v.nom + '</div>'
+        + '<div class="popup-sub">Vigie CCFF — ' + v.dfci + '</div>'
+        + '</div></div>'
+        + '<div class="popup-row"><span class="lbl">DFCI</span><span class="val" style="color:#e8a020;">' + v.dfci + '</span></div>'
+        + '<div class="popup-row"><span class="lbl">Lat</span><span class="val">' + v.lat.toFixed(5) + '</span></div>'
+        + '<div class="popup-row"><span class="lbl">Lon</span><span class="val">' + v.lon.toFixed(5) + '</span></div>'
+        + '<div class="popup-row" style="margin-top:6px;padding-top:6px;border-top:1px solid #1e2733;">'
+        + '<span style="font-size:10px;color:#4a5a6a;font-style:italic;">Champ de vision 360&#176; &#8212; en cours d&#39;&#233;laboration</span>'
+        + '</div>'
+        + '</div>';
+      marker.bindPopup(popup, { className: 'custom-popup', maxWidth: 260 });
+      marker.addTo(vigiesLayer);
+    });
+    vigiesLayer.addTo(map);
+    vigiesVisible = true;
+    btn.classList.add('active');
+    if (btnVisu) btnVisu.style.display = 'block';
+  }
+}
+
+function toggleVisuVigies() {
+  var btn = document.getElementById('btn-vigies-visu');
+  if (visuVisible) {
+    if (visuLayer) map.removeLayer(visuLayer);
+    visuLayer = null;
+    visuVisible = false;
+    if (btn) btn.classList.remove('active');
+  } else {
+    visuLayer = L.layerGroup();
+    VIGIES_DATA.forEach(function(v) {
+      // Cercle de 5km (5000m)
+      L.circle([v.lat, v.lon], {
+        radius: 5000,
+        color: '#ff6600',
+        weight: 1.5,
+        dashArray: '6,4',
+        fillColor: '#ff6600',
+        fillOpacity: 0.04,
+        interactive: false
+      }).addTo(visuLayer);
+    });
+    visuLayer.addTo(map);
+    visuVisible = true;
+    if (btn) btn.classList.add('active');
+  }
+}
+
+// --- COUCHE DFCI IGN WMTS (sans clé API — service IGN Géoplateforme gratuit) --
+var dfciIgnLayer   = null;
+var dfciIgnVisible = false;
+
+function toggleDFCI_IGN() {
+  var btn = document.getElementById('btn-dfci-ign');
+  if (dfciIgnVisible) {
+    if (dfciIgnLayer) map.removeLayer(dfciIgnLayer);
+    dfciIgnLayer   = null;
+    dfciIgnVisible = false;
+    btn.classList.remove('active');
+  } else {
+    dfciIgnLayer = L.tileLayer(
+      'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0' +
+      '&LAYER=GEOGRAPHICALGRIDSYSTEM.DFCI' +
+      '&STYLE=normal&TILEMATRIXSET=PM' +
+      '&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png',
+      {
+        attribution: '© IGN Géoportail',
+        maxZoom: 18,
+        opacity: 0.8,
+        pane: 'overlayPane'
+      }
+    );
+    dfciIgnLayer.addTo(map);
+    dfciIgnVisible = true;
+    btn.classList.add('active');
+  }
+}
+
+// Reconstruire la couche DFCI au changement de zoom
+map.on('zoomend', function() {
+  if (dfciVisible) {
+    map.removeLayer(dfciLayer);
+    dfciLayer = buildDFCILayer();
+    dfciLayer.addTo(map);
+  }
+  // ── F1 : adapter l'opacité du remplissage commune au niveau de zoom ──
+  var opacity = communeFillOpacity(map.getZoom());
+  [1, 2, 3, 4].forEach(function(n) {
+    if (dfciState[n].commune) {
+      dfciState[n].commune.setStyle({ fillOpacity: opacity });
+    }
+  });
+});
+
+// ── F1 : effacer contours communes au clic carte (hors marqueur/popup) ──
+map.on('click', function() {
+  [1,2,3,4].forEach(function(n) {
+    if (dfciState[n].commune)      { map.removeLayer(dfciState[n].commune);      dfciState[n].commune=null; }
+    if (dfciState[n].communeLabel) { map.removeLayer(dfciState[n].communeLabel); dfciState[n].communeLabel=null; }
+  });
+});
+
+// --- ICÔNES VÉHICULES --------------------------------------------------------
+function makeIcon(type, statut) {
+  const colors = { '4x4':'#4caf50', 'eau':'#42a5f5', 'cmd':'#ef9a9a' };
+  const emojis = { '4x4':'🚙', 'eau':'🚒', 'cmd':'\u2B50' };
+  const col = statut === 'hs' ? '#607d8b' : statut === 'attente' ? '#ff9800' : colors[type];
+  const em  = emojis[type];
+  const sz  = type === 'cmd' ? 40 : 34;
+  const html = `
+    <div style="
+      width:${sz}px;height:${sz}px;
+      background:${col}22;
+      border:2.5px solid ${col};
+      border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      font-size:${type==='cmd'?18:15}px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.5),0 0 0 3px ${col}33;
+      position:relative;
+    ">
+      ${em}
+      <div style="
+        position:absolute;bottom:-2px;right:-2px;
+        width:10px;height:10px;border-radius:50%;
+        background:${statut==='patrouille'?'#4caf50':statut==='attente'?'#ff9800':'#607d8b'};
+        border:1.5px solid #13181f;
+      "></div>
+    </div>`;
+  return L.divIcon({ html, className:'', iconSize:[sz,sz], iconAnchor:[sz/2,sz/2] });
+}
+
+// ── Position DFCI : lookup du carreau 2km contenant (lat, lng) ───────────────
+function latLngToDFCI(lat, lng) {
+  if (typeof DFCI_2KM === 'undefined' || !DFCI_2KM) return null;
+  for (var i = 0; i < DFCI_2KM.features.length; i++) {
+    var f    = DFCI_2KM.features[i];
+    var ring = f.geometry.coordinates[0];
+    // Bbox rapide (évite le test point-in-polygon complet pour 99% des cas)
+    var lons = ring.map(function(c){ return c[0]; });
+    var lats = ring.map(function(c){ return c[1]; });
+    var minLon = Math.min.apply(null, lons), maxLon = Math.max.apply(null, lons);
+    var minLat = Math.min.apply(null, lats), maxLat = Math.max.apply(null, lats);
+    if (lng >= minLon && lng <= maxLon && lat >= minLat && lat <= maxLat) {
+      // Affiner : zone 1km selon position dans le carreau
+      var midLat = (minLat + maxLat) / 2;
+      var midLon = (minLon + maxLon) / 2;
+      var mLa = (maxLat - minLat) * 0.25;
+      var mLo = (maxLon - minLon) * 0.25;
+      var zone;
+      if (lat > midLat - mLa && lat < midLat + mLa && lng > midLon - mLo && lng < midLon + mLo) {
+        zone = '.5';
+      } else if (lat >= midLat && lng <= midLon) { zone = '.1'; }
+      else if   (lat >= midLat && lng >  midLon) { zone = '.2'; }
+      else if   (lat <  midLat && lng >  midLon) { zone = '.3'; }
+      else                                        { zone = '.4'; }
+      return f.properties.c + zone;
+    }
+  }
+  return null;
+}
+
+// Toggle état position par véhicule (false = LatLng, true = DFCI)
+var posToggleState = {};
+
+function toggleVehiclePos(vid, lat, lng) {
+  posToggleState[vid] = !posToggleState[vid];
+  var useDFCI = posToggleState[vid];
+  var el = document.getElementById('vpos-val-' + vid);
+  var btn = document.getElementById('vpos-btn-' + vid);
+  if (!el || !btn) return;
+  if (useDFCI) {
+    var dfci = latLngToDFCI(lat, lng);
+    el.textContent  = dfci || 'Hors zone DFCI';
+    el.style.color  = dfci ? '#e8a020' : '#ef5350';
+    el.style.fontSize = '13px';
+    btn.textContent = '📍';
+    btn.title       = 'Afficher coordonnées GPS';
+  } else {
+    el.textContent  = lat.toFixed(4) + 'N ' + lng.toFixed(4) + 'E';
+    el.style.color  = '#e0e0e0';
+    el.style.fontSize = '11px';
+    btn.textContent = '📐';
+    btn.title       = 'Afficher code DFCI';
+  }
+}
+
+// ── Construction popup véhicule — appelée à la création ET au rafraîchissement
+function buildVehiclePopup(v) {
+  var bgColor   = v.type==='4x4' ? '#1a3a1a' : v.type==='eau' ? '#1a2a3a' : '#3a1a1a';
+  var typeIcon  = v.type==='4x4' ? '&#x1F699;' : v.type==='eau' ? '&#x1F692;' : '&#x2B50;';
+  var typeLabel = v.type==='4x4' ? '4x4 / VLTT' : v.type==='eau' ? 'Porteur eau / CCF' : 'Commandement';
+  var statClass = v.statut==='patrouille' ? 'green' : v.statut==='attente' ? 'orange' : '';
+  var statLabel = v.statut==='patrouille' ? 'En patrouille' : v.statut==='attente' ? 'En attente' : 'Hors service';
+  var statDot   = v.statut==='patrouille' ? '&#x1F7E2;' : v.statut==='attente' ? '&#x1F7E1;' : '&#x1F534;';
+
+  // Respecter le choix toggle actuel de l'utilisateur
+  var useDFCI   = !!posToggleState[v.id];
+  var posVal, posColor, posFontSize, btnIcon, btnTitle;
+  if (useDFCI) {
+    var dfci    = latLngToDFCI(v.lat, v.lng);
+    posVal      = dfci || 'Hors zone DFCI';
+    posColor    = dfci ? '#e8a020' : '#ef5350';
+    posFontSize = '13px';
+    btnIcon     = '&#x1F4CD;';   // 📍
+    btnTitle    = 'Afficher coordonn\u00e9es GPS';
+  } else {
+    posVal      = v.lat.toFixed(4) + 'N ' + v.lng.toFixed(4) + 'E';
+    posColor    = '#e0e0e0';
+    posFontSize = '11px';
+    btnIcon     = '&#x1F4D0;';   // 📐
+    btnTitle    = 'Afficher code DFCI';
+  }
+
+  return '<div class="popup-inner">'
+    + '<div class="popup-header">'
+    + '<div class="popup-icon" style="background:' + bgColor + '">' + typeIcon + '</div>'
+    + '<div><div class="popup-title">' + v.nom + '</div>'
+    + '<div class="popup-sub">' + typeLabel + ' - ' + v.secteur + '</div></div>'
+    + '</div>'
+    + '<div class="popup-row"><span class="lbl">Equipe</span><span class="val">' + v.equipe + '</span></div>'
+    + '<div class="popup-row"><span class="lbl">Statut</span><span class="val ' + statClass + '">' + statDot + ' ' + statLabel + '</span></div>'
+    + '<div class="popup-row"><span class="lbl">Vitesse</span><span class="val">' + Math.round(v.vitesse) + ' km/h</span></div>'
+    + '<div class="popup-row"><span class="lbl">MAJ</span><span class="val">' + v.heure + '</span></div>'
+    + '<div class="popup-row" style="align-items:center;">'
+    +   '<span class="lbl">Position</span>'
+    +   '<span style="display:flex;align-items:center;gap:6px;">'
+    +     '<span class="val" id="vpos-val-' + v.id + '" style="font-size:' + posFontSize + ';color:' + posColor + ';">' + posVal + '</span>'
+    +     '<button id="vpos-btn-' + v.id + '" '
+    +       'onclick="toggleVehiclePos(' + v.id + ',' + v.lat + ',' + v.lng + ')" '
+    +       'title="' + btnTitle + '" '
+    +       'style="background:#1a2535;border:1px solid #2a3a50;border-radius:4px;color:#e8a020;'
+    +              'font-size:12px;padding:1px 5px;cursor:pointer;line-height:1.4;flex-shrink:0;"'
+    +     '>' + btnIcon + '</button>'
+    +   '</span>'
+    + '</div>'
+    + '</div>';
+}
+
+// --- MARQUEURS ---------------------------------------------------------------
+const clusterGroup = L.markerClusterGroup({
+  maxClusterRadius: 50,
+  iconCreateFunction: cluster => {
+    const n = cluster.getChildCount();
+    return L.divIcon({
+      html:`<div style="width:38px;height:38px;background:#e85d2622;border:2px solid #e85d26;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;color:#e85d26;">${n}</div>`,
+      className:'', iconSize:[38,38], iconAnchor:[19,19]
+    });
+  }
+});
+
+const markers = {};
+
+vehicules.forEach(v => {
+  var popup = buildVehiclePopup(v);
+
+  var marker = L.marker([v.lat, v.lng], { icon: makeIcon(v.type, v.statut) })
+    .bindPopup(popup, { className: 'custom-popup', maxWidth: 280 })
+    .on('click', function(){ selectVehicle(v.id); });
+
+  markers[v.id] = { marker: marker, data: v };
+});
+
+clusterGroup.addTo(map);
+
+// --- LISTE SIDEBAR ------------------------------------------------------------
+function renderList(filter) {
+  if (!filter) filter = 'tous';
+  var list = document.getElementById('vehicle-list');
+  list.innerHTML = '';
+  var filtered = filter === 'tous' ? vehicules : vehicules.filter(function(v){ return v.secteur === filter; });
+  filtered.forEach(function(v) {
+    var statusDot = v.statut === 'patrouille' ? 'dot-green' : v.statut === 'attente' ? 'dot-orange' : 'dot-gray';
+    var statusTxt = v.statut === 'patrouille' ? 'En patrouille' : v.statut === 'attente' ? 'En attente' : 'Hors service';
+    var statusCol = v.statut === 'patrouille' ? '#4caf50' : v.statut === 'attente' ? '#ff9800' : '#607d8b';
+    var badge    = v.type === '4x4' ? 'badge-4x4' : v.type === 'eau' ? 'badge-eau' : 'badge-cmd';
+    var badgeTxt = v.type === '4x4' ? '4X4' : v.type === 'eau' ? 'CCF' : 'CMD';
+    var typeIcon = v.type === '4x4' ? '&#x1F699;' : v.type === 'eau' ? '&#x1F692;' : '&#x2B50;';
+    var speedStr = v.vitesse > 0 ? '<span style="color:#6a7a8a;margin-left:auto;">' + Math.round(v.vitesse) + ' km/h</span>' : '';
+    var div = document.createElement('div');
+    div.className = 'vehicle-item';
+    div.id = 'vi-' + v.id;
+    div.innerHTML = '<div class="vi-top">'
+      + '<div class="vi-name">' + typeIcon + ' ' + v.nom
+      + ' <span class="vi-badge ' + badge + '">' + badgeTxt + '</span></div>'
+      + '</div>'
+      + '<div class="vi-sub">' + v.secteur + ' - ' + v.equipe + '</div>'
+      + '<div class="vi-status" style="margin-top:3px;">'
+      + '<div class="' + statusDot + '"></div>'
+      + '<span style="color:' + statusCol + '">' + statusTxt + '</span>'
+      + speedStr
+      + '</div>';
+    div.onclick = function(){ selectVehicle(v.id); };
+    list.appendChild(div);
+  });
+}
+function selectVehicle(id) {
+  document.querySelectorAll('.vehicle-item').forEach(el => el.classList.remove('selected'));
+  const el = document.getElementById(`vi-${id}`);
+  if (el) { el.classList.add('selected'); el.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
+  const m = markers[id];
+  if (m) {
+    map.setView([m.data.lat, m.data.lng], 13, { animate: true });
+    clusterGroup.zoomToShowLayer(m.marker, () => m.marker.openPopup());
+  }
+}
+
+function filterBySecteur(val) {
+  renderList(val);
+}
+
+renderList();
+
+// --- HORLOGE -----------------------------------------------------------------
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toTimeString().slice(0,8);
+  document.getElementById('date-display').textContent =
+    now.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// --- RECHERCHE DFCI (double) ------------------------------------------------
+var COULEURS = {
+  1: { fill:'#ff4444', marker:'#ff4444', label:'S1' },
+  2: { fill:'#4488ff', marker:'#4488ff', label:'S2' },
+  3: { fill:'#ff8800', marker:'#ff8800', label:'S3' },
+  4: { fill:'#aa44ff', marker:'#aa44ff', label:'S4' }
+};
+
+var dfciState = {
+  1: { marker: null, highlight: null, commune: null, communeLabel: null, communeColor: null },
+  2: { marker: null, highlight: null, commune: null, communeLabel: null, communeColor: null },
+  3: { marker: null, highlight: null, commune: null, communeLabel: null, communeColor: null },
+  4: { marker: null, highlight: null, commune: null, communeLabel: null, communeColor: null }
+};
+
+// ── F1 : opacité remplissage commune selon zoom ────────────────────────────
+// zoom 8-9 → 0.30 (vue large, commune = repère visuel fort)
+// zoom 10-11 → 0.20 (vue dept, équilibre)
+// zoom 12-13 → 0.12 (vue locale, lisibilité fond prioritaire)
+// zoom 14+   → 0.06 (très zoomé, fond carte prime)
+function communeFillOpacity(zoom) {
+  if (zoom <= 9)  return 0.30;
+  if (zoom <= 11) return 0.20;
+  if (zoom <= 13) return 0.12;
+  return 0.06;
+}
+
+// ── F1 : Fetch contour commune depuis API geo.gouv.fr ──────────────────────
+var COULEURS_COMMUNE = {
+  1: '#ff3333',   // rouge pour S1
+  2: '#1a6ecc',   // bleu foncé pour S2
+  3: '#cc6600',   // orange pour S3
+  4: '#7722cc'    // violet pour S4
+};
+
+function fetchCommune(n, lat, lon) {
+  // Effacer l'ancien contour commune de ce slot
+  if (dfciState[n].commune)      { map.removeLayer(dfciState[n].commune);      dfciState[n].commune=null; }
+  if (dfciState[n].communeLabel) { map.removeLayer(dfciState[n].communeLabel); dfciState[n].communeLabel=null; }
+
+  var url = 'https://geo.api.gouv.fr/communes?lat=' + lat + '&lon=' + lon + '&fields=nom,contour&format=geojson&geometry=contour';
+
+  fetch(url)
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(data) {
+      if (!data.features || data.features.length === 0) return;
+      var feat    = data.features[0];
+      var nomComm = feat.properties.nom || '';
+      var col     = COULEURS_COMMUNE[n];
+
+      // ── Mettre à jour la commune dans le cadre incident ──
+      if (incidentData[n] && incidentData[n].code) {
+        incidentData[n].commune = nomComm;
+        renderIncidentsPanel();
+      }
+
+      // Contour pointillé — fillOpacity adaptatif selon zoom (géré par zoomend)
+      dfciState[n].commune = L.geoJSON(feat, {
+        style: {
+          color:       col,
+          weight:      3,
+          dashArray:   '8,6',
+          fillColor:   col,
+          fillOpacity: communeFillOpacity(map.getZoom()),
+          opacity:     1,
+          interactive: false
+        }
+      }).addTo(map);
+      dfciState[n].communeColor = col;  // mémoriser pour zoom adaptatif
+
+      // Passer au-dessus de tous les autres layers (tuiles, highlights, etc.)
+      dfciState[n].commune.bringToFront();
+
+      // Label centré sur la commune
+      var bounds = dfciState[n].commune.getBounds();
+      var ctr    = bounds.getCenter();
+      dfciState[n].communeLabel = L.marker([ctr.lat, ctr.lng], {
+        icon: L.divIcon({
+          className: 'commune-label',
+          html: nomComm,
+          iconSize: null,
+          iconAnchor: null
+        }),
+        interactive: false,
+        keyboard:    false
+      }).addTo(map);
+
+      // Injecter le nom dans le popup DFCI — on interroge le marker stocké dans dfciState
+      // Le popup est peut-être ouvert ou pas, on injecte dans le DOM s'il est présent
+      var mkr = dfciState[n].marker;
+      if (mkr) {
+        var popup = mkr.getPopup();
+        // Mettre à jour le contenu texte du popup avec la commune
+        if (popup) {
+          var currentContent = popup.getContent();
+          // Vérifier qu'on n'a pas déjà injecté
+          if (typeof currentContent === 'string' && currentContent.indexOf('commune-row') === -1) {
+            var communeBlock = '<div class="commune-row" style="border-top:1px solid #2a3040;margin-top:8px;padding-top:8px;text-align:center;">'
+              + '<span style="font-size:10px;color:#6a7a8a;letter-spacing:1px;text-transform:uppercase;">Commune</span>'
+              + '<div style="font-size:15px;font-weight:700;color:' + col + ';letter-spacing:0.5px;margin-top:3px;">'
+              + nomComm + '</div></div>';
+            // Injecter avant la fermeture du div principal
+            var newContent = currentContent.replace('</div>\n</div>', communeBlock + '</div>\n</div>');
+            if (newContent === currentContent) {
+              // fallback : ajouter à la fin du dernier div
+              newContent = currentContent.slice(0, currentContent.lastIndexOf('</div>'))
+                + communeBlock + '</div>';
+            }
+            popup.setContent(newContent);
+            // Si le popup est ouvert, le DOM se rafraîchit automatiquement
+          }
+        }
+      }
+    })
+    .catch(function(err) {
+      console.warn('[F1] Commune fetch erreur:', err.message);
+    });
+}
+
+var ZONE_LABELS = {
+  '.1':'Haut Gauche', '.2':'Haut Droit',
+  '.3':'Bas Droit',   '.4':'Bas Gauche', '.5':'Centre'
+};
+
+function dfciParseCode(raw) {
+  var s = raw.trim().toUpperCase().replace(/\s/g,'');
+  var m20 = s.match(/^([A-Z]{2}\d{2})$/);
+  var m2  = s.match(/^([A-Z]{2}\d{2}[A-J]\d)$/);
+  var m1  = s.match(/^([A-Z]{2}\d{2}[A-J]\d)\.([1-5])$/);
+  if (m1)  return { type:'1km',  code2:m1[1], zone:'.'+m1[2], full:s };
+  if (m2)  return { type:'2km',  code2:m2[1], full:s };
+  if (m20) return { type:'20km', code20:m20[1], full:s };
+  return null;
+}
+
+function dfciFindFeature2km(code2) {
+  if (!DFCI_2KM) return null;
+  for (var i=0; i<DFCI_2KM.features.length; i++) {
+    if (DFCI_2KM.features[i].properties.c === code2) return DFCI_2KM.features[i];
+  }
+  return null;
+}
+
+function dfciFindFeature20km(code20) {
+  if (!DFCI_20KM) return null;
+  for (var i=0; i<DFCI_20KM.features.length; i++) {
+    if (DFCI_20KM.features[i].properties.c === code20) return DFCI_20KM.features[i];
+  }
+  return null;
+}
+
+function dfciZoneCenter(feat, zone) {
+  var coords = feat.geometry.coordinates[0];
+  var lons = coords.slice(0,4).map(function(c){return c[0];});
+  var lats = coords.slice(0,4).map(function(c){return c[1];});
+  var minLon=Math.min.apply(null,lons), maxLon=Math.max.apply(null,lons);
+  var minLat=Math.min.apply(null,lats), maxLat=Math.max.apply(null,lats);
+  var midLon=(minLon+maxLon)/2, midLat=(minLat+maxLat)/2;
+  var centers = {
+    '.1':[(midLat+maxLat)/2,(minLon+midLon)/2],
+    '.2':[(midLat+maxLat)/2,(midLon+maxLon)/2],
+    '.3':[(minLat+midLat)/2,(midLon+maxLon)/2],
+    '.4':[(minLat+midLat)/2,(minLon+midLon)/2],
+    '.5':[midLat,midLon]
+  };
+  return centers[zone] || [midLat,midLon];
+}
+
+function dfciClearSearch(n) {
+  if (dfciState[n].marker)       { map.removeLayer(dfciState[n].marker);       dfciState[n].marker=null; }
+  if (dfciState[n].highlight)    { map.removeLayer(dfciState[n].highlight);    dfciState[n].highlight=null; }
+  if (dfciState[n].commune)      { map.removeLayer(dfciState[n].commune);      dfciState[n].commune=null; }
+  if (dfciState[n].communeLabel) { map.removeLayer(dfciState[n].communeLabel); dfciState[n].communeLabel=null; }
+}
+
+function dfciClear(n) {
+  document.getElementById('dfci-input-'+n).value = '';
+  document.getElementById('dfci-sugg-'+n).style.display = 'none';
+  dfciClearSearch(n);
+}
+
+function dfciSearch(n) {
+  var raw    = document.getElementById('dfci-input-'+n).value;
+  var parsed = dfciParseCode(raw);
+  var col    = COULEURS[n];
+  dfciClearSearch(n);
+  document.getElementById('dfci-sugg-'+n).style.display = 'none';
+
+  if (!parsed) return;
+
+  if (parsed.type === '20km') {
+    var f20 = dfciFindFeature20km(parsed.code20);
+    if (!f20) return;
+    map.setView([f20.properties.cy, f20.properties.cx], 11, {animate:true});
+    dfciState[n].highlight = L.geoJSON(f20, {
+      style:{color:col.fill, weight:3, fillColor:col.fill, fillOpacity:0.15}
+    }).addTo(map);
+    if (dfciVisible) toggleDFCI();
+    return;
+  }
+
+  var feat = dfciFindFeature2km(parsed.code2);
+  if (!feat) return;
+
+  dfciState[n].highlight = L.geoJSON(feat, {
+    style:{color:col.fill, weight:2.5, fillColor:col.fill, fillOpacity:0.15}
+  }).addTo(map);
+
+  var center, popupTxt, zoom;
+  if (parsed.type === '2km') {
+    center = [feat.properties.cy, feat.properties.cx];
+    zoom   = 13;
+    popupTxt = '<div style="text-align:center;padding:4px;">'
+      + '<div style="font-size:20px;font-weight:700;color:'+col.fill+';">'+parsed.code2+'</div>'
+      + '<div style="font-size:11px;color:#8a9bb0;margin-top:4px;">Carreau 2km x 2km</div>'
+      + '<div style="font-size:10px;color:'+col.fill+';margin-top:3px;font-weight:700;">'+col.label+'</div>'
+      + '</div>';
+  } else {
+    center = dfciZoneCenter(feat, parsed.zone);
+    zoom   = 14;
+    var zlab = ZONE_LABELS[parsed.zone] || '';
+    popupTxt = '<div style="text-align:center;padding:4px;">'
+      + '<div style="font-size:20px;font-weight:700;color:'+col.fill+';">'+parsed.full+'</div>'
+      + '<div style="font-size:12px;color:#8a9bb0;margin-top:2px;">'+zlab+' - 1km x 1km</div>'
+      + '<div style="font-size:10px;color:#4a5a6a;margin-top:4px;">'+parsed.code2+' (carreau 2km)</div>'
+      + '<div style="font-size:10px;color:'+col.fill+';margin-top:3px;font-weight:700;">'+col.label+'</div>'
+      + '</div>';
+  }
+
+  map.setView(center, zoom, {animate:true});
+  if (dfciVisible) toggleDFCI();
+
+  dfciState[n].marker = L.marker(center, {
+    icon: L.divIcon({
+      className: '',
+      html: '<div style="width:22px;height:22px;background:'+col.marker+';border:3px solid white;'
+          + 'border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.6);"></div>',
+      iconSize:[22,22], iconAnchor:[11,11]
+    })
+  }).addTo(map);
+
+  dfciState[n].marker.bindPopup(popupTxt, {className:'custom-popup', maxWidth:220}).openPopup();
+
+  // ── F1 : charger et afficher le contour de la commune ──
+  fetchCommune(n, center[0], center[1]);
+
+  // ── Ouvrir le cadre incident correspondant ──
+  ouvrirIncident(n, parsed.full || parsed.code2 || parsed.code20, '');
+}
+
+// Autocompletion pour les 2 champs
+function initAutoComplete(n) {
+  var inp  = document.getElementById('dfci-input-'+n);
+  var sugg = document.getElementById('dfci-sugg-'+n);
+  if (!inp) return;
+
+  inp.addEventListener('input', function() {
+    var val = inp.value.trim().toUpperCase().replace(/\s/g,'');
+    sugg.innerHTML = ''; sugg.style.display='none';
+    if (val.length < 2) return;
+    var matches = [];
+    if (DFCI_20KM && val.length <= 4) {
+      DFCI_20KM.features.forEach(function(f) {
+        if (f.properties.c.startsWith(val)) matches.push({code:f.properties.c, type:'Maille 20km'});
+      });
+    }
+    if (DFCI_2KM && val.length >= 4) {
+      var base = val.replace(/\.\d$/,'');
+      var count = 0;
+      for (var i=0; i<DFCI_2KM.features.length && count<8; i++) {
+        var c = DFCI_2KM.features[i].properties.c;
+        if (c.startsWith(base)) {
+          matches.push({code:c, type:'Carreau 2km'});
+          if (val.length >= 6 && c === base) {
+            ['.1','.2','.3','.4','.5'].forEach(function(z) {
+              matches.push({code:c+z, type:'Zone 1km - '+ZONE_LABELS[z]});
+            });
+          }
+          count++;
+        }
+      }
+    }
+    if (matches.length===0) return;
+    sugg.style.display='block';
+    matches.slice(0,10).forEach(function(m) {
+      var div = document.createElement('div');
+      div.className = 'dfci-suggestion';
+      div.innerHTML = '<span class="dfci-sug-code">'+m.code+'</span>'
+                    + '<span class="dfci-sug-type">'+m.type+'</span>';
+      div.onclick = function() {
+        inp.value = m.code;
+        sugg.style.display='none';
+        dfciSearch(n);
+      };
+      sugg.appendChild(div);
+    });
+  });
+
+  inp.addEventListener('keydown', function(e) {
+    if (e.key==='Enter')  { dfciSearch(n); sugg.style.display='none'; }
+    if (e.key==='Escape') sugg.style.display='none';
+  });
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// DONNÉES COMMUNES VAR — 153 communes, coords IGN officielles
+// ══════════════════════════════════════════════════════════════
+var COMMUNES_VAR = [{"nom": "Toulon", "insee": "83137", "cp": "83000", "lat": 43.1242, "lon": 5.928}, {"nom": "Les Adrets-de-l'Estérel", "insee": "83001", "cp": "83600", "lat": 43.5089, "lon": 6.8267}, {"nom": "Aiguines", "insee": "83002", "cp": "83630", "lat": 43.7598, "lon": 6.1467}, {"nom": "Ampus", "insee": "83003", "cp": "83111", "lat": 43.5814, "lon": 6.3647}, {"nom": "Les Arcs", "insee": "83004", "cp": "83460", "lat": 43.4603, "lon": 6.4811}, {"nom": "Artignosc-sur-Verdon", "insee": "83005", "cp": "83630", "lat": 43.6931, "lon": 6.0675}, {"nom": "Artigues", "insee": "83006", "cp": "83560", "lat": 43.5219, "lon": 5.9881}, {"nom": "Aups", "insee": "83007", "cp": "83630", "lat": 43.6286, "lon": 6.2231}, {"nom": "Bagnols-en-Forêt", "insee": "83008", "cp": "83600", "lat": 43.5486, "lon": 6.7019}, {"nom": "Bandol", "insee": "83009", "cp": "83150", "lat": 43.1361, "lon": 5.7536}, {"nom": "Bargème", "insee": "83010", "cp": "83840", "lat": 43.7539, "lon": 6.5422}, {"nom": "Bargemon", "insee": "83011", "cp": "83830", "lat": 43.6283, "lon": 6.5567}, {"nom": "Barjols", "insee": "83012", "cp": "83670", "lat": 43.5567, "lon": 6.005}, {"nom": "La Bastide", "insee": "83013", "cp": "83840", "lat": 43.7764, "lon": 6.6211}, {"nom": "Baudinard-sur-Verdon", "insee": "83014", "cp": "83630", "lat": 43.7347, "lon": 6.1094}, {"nom": "Bauduen", "insee": "83015", "cp": "83630", "lat": 43.75, "lon": 6.1603}, {"nom": "Le Beausset", "insee": "83016", "cp": "83330", "lat": 43.1989, "lon": 5.8019}, {"nom": "Belgentier", "insee": "83017", "cp": "83210", "lat": 43.2344, "lon": 5.9981}, {"nom": "Besse-sur-Issole", "insee": "83018", "cp": "83890", "lat": 43.3781, "lon": 6.1681}, {"nom": "Bormes-les-Mimosas", "insee": "83019", "cp": "83230", "lat": 43.1536, "lon": 6.3397}, {"nom": "Le Bourguet", "insee": "83020", "cp": "83840", "lat": 43.7906, "lon": 6.5928}, {"nom": "Bras", "insee": "83021", "cp": "83149", "lat": 43.4747, "lon": 5.9906}, {"nom": "Brenon", "insee": "83022", "cp": "83840", "lat": 43.7786, "lon": 6.6478}, {"nom": "Brignoles", "insee": "83023", "cp": "83170", "lat": 43.4056, "lon": 6.0619}, {"nom": "Brue-Auriac", "insee": "83025", "cp": "83119", "lat": 43.4819, "lon": 5.8978}, {"nom": "Cabasse", "insee": "83026", "cp": "83340", "lat": 43.3867, "lon": 6.2264}, {"nom": "La Cadière-d'Azur", "insee": "83027", "cp": "83740", "lat": 43.1789, "lon": 5.7506}, {"nom": "Callas", "insee": "83028", "cp": "83830", "lat": 43.5917, "lon": 6.5514}, {"nom": "Callian", "insee": "83029", "cp": "83440", "lat": 43.6214, "lon": 6.745}, {"nom": "Camps-la-Source", "insee": "83030", "cp": "83170", "lat": 43.4144, "lon": 5.9803}, {"nom": "Le Cannet-des-Maures", "insee": "83031", "cp": "83340", "lat": 43.3717, "lon": 6.3181}, {"nom": "Carcès", "insee": "83032", "cp": "83570", "lat": 43.4742, "lon": 6.1803}, {"nom": "Carnoules", "insee": "83033", "cp": "83660", "lat": 43.3167, "lon": 6.1736}, {"nom": "Carqueiranne", "insee": "83034", "cp": "83320", "lat": 43.0986, "lon": 6.0728}, {"nom": "Le Castellet", "insee": "83035", "cp": "83330", "lat": 43.2003, "lon": 5.7775}, {"nom": "Cavalaire-sur-Mer", "insee": "83036", "cp": "83240", "lat": 43.1736, "lon": 6.5261}, {"nom": "La Celle", "insee": "83037", "cp": "83170", "lat": 43.4339, "lon": 6.0247}, {"nom": "Châteaudouble", "insee": "83038", "cp": "83300", "lat": 43.5606, "lon": 6.3983}, {"nom": "Châteauvert", "insee": "83039", "cp": "83670", "lat": 43.5119, "lon": 6.0383}, {"nom": "Châteauvieux", "insee": "83040", "cp": "83840", "lat": 43.7575, "lon": 6.6003}, {"nom": "Claviers", "insee": "83041", "cp": "83830", "lat": 43.6253, "lon": 6.5208}, {"nom": "Cogolin", "insee": "83042", "cp": "83310", "lat": 43.2522, "lon": 6.5281}, {"nom": "Collobrières", "insee": "83043", "cp": "83610", "lat": 43.2111, "lon": 6.3694}, {"nom": "Comps-sur-Artuby", "insee": "83044", "cp": "83840", "lat": 43.7183, "lon": 6.5044}, {"nom": "Correns", "insee": "83045", "cp": "83570", "lat": 43.4994, "lon": 6.1378}, {"nom": "Cotignac", "insee": "83046", "cp": "83570", "lat": 43.5558, "lon": 6.1519}, {"nom": "La Crau", "insee": "83047", "cp": "83260", "lat": 43.1536, "lon": 6.0717}, {"nom": "La Croix-Valmer", "insee": "83048", "cp": "83420", "lat": 43.2058, "lon": 6.5722}, {"nom": "Cuers", "insee": "83049", "cp": "83390", "lat": 43.2358, "lon": 6.0703}, {"nom": "Draguignan", "insee": "83050", "cp": "83300", "lat": 43.5353, "lon": 6.465}, {"nom": "Entrecasteaux", "insee": "83051", "cp": "83570", "lat": 43.5025, "lon": 6.2139}, {"nom": "Esparron-de-Pallières", "insee": "83052", "cp": "83560", "lat": 43.4922, "lon": 5.9694}, {"nom": "Évenos", "insee": "83053", "cp": "83330", "lat": 43.1878, "lon": 5.8353}, {"nom": "La Farlède", "insee": "83054", "cp": "83210", "lat": 43.1969, "lon": 6.0131}, {"nom": "Fayence", "insee": "83055", "cp": "83440", "lat": 43.6281, "lon": 6.6994}, {"nom": "Figanières", "insee": "83056", "cp": "83830", "lat": 43.5731, "lon": 6.5178}, {"nom": "Flassans-sur-Issole", "insee": "83057", "cp": "83340", "lat": 43.3722, "lon": 6.2444}, {"nom": "Flayosc", "insee": "83058", "cp": "83780", "lat": 43.5153, "lon": 6.3994}, {"nom": "Forcalqueiret", "insee": "83059", "cp": "83136", "lat": 43.3094, "lon": 6.0581}, {"nom": "Fox-Amphoux", "insee": "83060", "cp": "83670", "lat": 43.6025, "lon": 6.0831}, {"nom": "Fréjus", "insee": "83061", "cp": "83600", "lat": 43.4328, "lon": 6.7369}, {"nom": "La Garde", "insee": "83062", "cp": "83130", "lat": 43.1253, "lon": 6.0078}, {"nom": "La Garde-Freinet", "insee": "83063", "cp": "83680", "lat": 43.3253, "lon": 6.4675}, {"nom": "Garéoult", "insee": "83064", "cp": "83136", "lat": 43.3186, "lon": 6.0197}, {"nom": "Gassin", "insee": "83065", "cp": "83580", "lat": 43.2289, "lon": 6.5836}, {"nom": "Ginasservis", "insee": "83066", "cp": "83560", "lat": 43.5725, "lon": 5.8708}, {"nom": "Gonfaron", "insee": "83067", "cp": "83590", "lat": 43.3244, "lon": 6.2925}, {"nom": "Grimaud", "insee": "83068", "cp": "83310", "lat": 43.2744, "lon": 6.5181}, {"nom": "Hyères", "insee": "83069", "cp": "83400", "lat": 43.1194, "lon": 6.1289}, {"nom": "Le Lavandou", "insee": "83070", "cp": "83980", "lat": 43.1344, "lon": 6.3717}, {"nom": "La Londe-les-Maures", "insee": "83071", "cp": "83250", "lat": 43.1378, "lon": 6.2342}, {"nom": "Lorgues", "insee": "83072", "cp": "83510", "lat": 43.4936, "lon": 6.3619}, {"nom": "Le Luc", "insee": "83073", "cp": "83340", "lat": 43.3967, "lon": 6.3153}, {"nom": "La Martre", "insee": "83074", "cp": "83840", "lat": 43.7358, "lon": 6.6394}, {"nom": "Les Mayons", "insee": "83075", "cp": "83340", "lat": 43.3369, "lon": 6.3394}, {"nom": "Mazaugues", "insee": "83076", "cp": "83136", "lat": 43.3328, "lon": 5.9428}, {"nom": "Méounes-lès-Montrieux", "insee": "83077", "cp": "83136", "lat": 43.2728, "lon": 5.9489}, {"nom": "Moissac-Bellevue", "insee": "83078", "cp": "83630", "lat": 43.6753, "lon": 6.1867}, {"nom": "La Môle", "insee": "83079", "cp": "83310", "lat": 43.2119, "lon": 6.4744}, {"nom": "Mons", "insee": "83080", "cp": "83440", "lat": 43.6939, "lon": 6.7172}, {"nom": "Montauroux", "insee": "83081", "cp": "83440", "lat": 43.6414, "lon": 6.7664}, {"nom": "Montferrat", "insee": "83082", "cp": "83131", "lat": 43.5494, "lon": 6.4786}, {"nom": "Montfort-sur-Argens", "insee": "83083", "cp": "83570", "lat": 43.4992, "lon": 6.1625}, {"nom": "Montmeyan", "insee": "83084", "cp": "83670", "lat": 43.6369, "lon": 6.0647}, {"nom": "La Motte", "insee": "83085", "cp": "83920", "lat": 43.4842, "lon": 6.5283}, {"nom": "Le Muy", "insee": "83086", "cp": "83490", "lat": 43.4706, "lon": 6.5706}, {"nom": "Nans-les-Pins", "insee": "83087", "cp": "83860", "lat": 43.3742, "lon": 5.7889}, {"nom": "Néoules", "insee": "83088", "cp": "83136", "lat": 43.3128, "lon": 6.0211}, {"nom": "Ollières", "insee": "83089", "cp": "83470", "lat": 43.4458, "lon": 5.9614}, {"nom": "Ollioules", "insee": "83090", "cp": "83190", "lat": 43.1397, "lon": 5.8464}, {"nom": "Pierrefeu-du-Var", "insee": "83091", "cp": "83390", "lat": 43.2097, "lon": 6.1531}, {"nom": "Pignans", "insee": "83092", "cp": "83790", "lat": 43.2956, "lon": 6.2214}, {"nom": "Plan-d'Aups-Sainte-Baume", "insee": "83093", "cp": "83640", "lat": 43.3281, "lon": 5.7711}, {"nom": "Le Plan-de-la-Tour", "insee": "83094", "cp": "83120", "lat": 43.3344, "lon": 6.55}, {"nom": "Pontevès", "insee": "83095", "cp": "83670", "lat": 43.5697, "lon": 6.0297}, {"nom": "Pourcieux", "insee": "83096", "cp": "83470", "lat": 43.4589, "lon": 5.8542}, {"nom": "Pourrières", "insee": "83097", "cp": "83910", "lat": 43.4828, "lon": 5.8211}, {"nom": "Le Pradet", "insee": "83098", "cp": "83220", "lat": 43.1028, "lon": 6.0211}, {"nom": "Puget-sur-Argens", "insee": "83099", "cp": "83480", "lat": 43.4556, "lon": 6.6811}, {"nom": "Puget-Ville", "insee": "83100", "cp": "83390", "lat": 43.2619, "lon": 6.1208}, {"nom": "Ramatuelle", "insee": "83101", "cp": "83350", "lat": 43.2069, "lon": 6.6222}, {"nom": "Rayol-Canadel-sur-Mer", "insee": "83152", "cp": "83820", "lat": 43.1597, "lon": 6.4722}, {"nom": "Régusse", "insee": "83102", "cp": "83630", "lat": 43.665, "lon": 6.1339}, {"nom": "Le Revest-les-Eaux", "insee": "83103", "cp": "83200", "lat": 43.1842, "lon": 5.9153}, {"nom": "Rians", "insee": "83104", "cp": "83560", "lat": 43.6028, "lon": 5.74}, {"nom": "Riboux", "insee": "83105", "cp": "83136", "lat": 43.3219, "lon": 5.7506}, {"nom": "Rocbaron", "insee": "83106", "cp": "83136", "lat": 43.3181, "lon": 6.0836}, {"nom": "La Roque-Esclapon", "insee": "83109", "cp": "83840", "lat": 43.7386, "lon": 6.6511}, {"nom": "Roquebrune-sur-Argens", "insee": "83107", "cp": "83520", "lat": 43.4456, "lon": 6.6369}, {"nom": "La Roquebrussanne", "insee": "83108", "cp": "83136", "lat": 43.3511, "lon": 5.9622}, {"nom": "Rougiers", "insee": "83110", "cp": "83170", "lat": 43.3869, "lon": 5.8322}, {"nom": "Saint-Antonin-du-Var", "insee": "83154", "cp": "83510", "lat": 43.5314, "lon": 6.2672}, {"nom": "Saint-Cyr-sur-Mer", "insee": "83112", "cp": "83270", "lat": 43.1778, "lon": 5.7094}, {"nom": "Saint-Julien", "insee": "83113", "cp": "83560", "lat": 43.5736, "lon": 5.9217}, {"nom": "Saint-Mandrier-sur-Mer", "insee": "83153", "cp": "83430", "lat": 43.0742, "lon": 5.9278}, {"nom": "Saint-Martin-de-Pallières", "insee": "83114", "cp": "83560", "lat": 43.5269, "lon": 5.9433}, {"nom": "Saint-Maximin-la-Sainte-Baume", "insee": "83116", "cp": "83470", "lat": 43.4553, "lon": 5.8636}, {"nom": "Saint-Paul-en-Forêt", "insee": "83117", "cp": "83440", "lat": 43.5706, "lon": 6.7303}, {"nom": "Saint-Raphaël", "insee": "83118", "cp": "83700", "lat": 43.4253, "lon": 6.7681}, {"nom": "Saint-Tropez", "insee": "83119", "cp": "83990", "lat": 43.2681, "lon": 6.6403}, {"nom": "Saint-Zacharie", "insee": "83120", "cp": "83640", "lat": 43.3803, "lon": 5.72}, {"nom": "Sainte-Anastasie-sur-Issole", "insee": "83111", "cp": "83136", "lat": 43.3569, "lon": 6.1517}, {"nom": "Sainte-Maxime", "insee": "83115", "cp": "83120", "lat": 43.3072, "lon": 6.6331}, {"nom": "Salernes", "insee": "83121", "cp": "83690", "lat": 43.5572, "lon": 6.2369}, {"nom": "Les Salles-sur-Verdon", "insee": "83122", "cp": "83630", "lat": 43.7442, "lon": 6.2111}, {"nom": "Sanary-sur-Mer", "insee": "83123", "cp": "83110", "lat": 43.1181, "lon": 5.7994}, {"nom": "Seillans", "insee": "83124", "cp": "83440", "lat": 43.6308, "lon": 6.6003}, {"nom": "Seillons-Source-d'Argens", "insee": "83125", "cp": "83470", "lat": 43.5228, "lon": 5.955}, {"nom": "La Seyne-sur-Mer", "insee": "83126", "cp": "83500", "lat": 43.1011, "lon": 5.8794}, {"nom": "Signes", "insee": "83127", "cp": "83870", "lat": 43.2872, "lon": 5.8561}, {"nom": "Sillans-la-Cascade", "insee": "83128", "cp": "83690", "lat": 43.5644, "lon": 6.1703}, {"nom": "Six-Fours-les-Plages", "insee": "83129", "cp": "83140", "lat": 43.1003, "lon": 5.8153}, {"nom": "Solliès-Pont", "insee": "83130", "cp": "83210", "lat": 43.1922, "lon": 6.0397}, {"nom": "Solliès-Toucas", "insee": "83131", "cp": "83210", "lat": 43.2133, "lon": 6.0353}, {"nom": "Solliès-Ville", "insee": "83132", "cp": "83210", "lat": 43.2214, "lon": 6.0478}, {"nom": "Tanneron", "insee": "83133", "cp": "83440", "lat": 43.5953, "lon": 6.8058}, {"nom": "Taradeau", "insee": "83134", "cp": "83460", "lat": 43.4736, "lon": 6.4344}, {"nom": "Tavernes", "insee": "83135", "cp": "83670", "lat": 43.6078, "lon": 6.0133}, {"nom": "Le Thoronet", "insee": "83136", "cp": "83340", "lat": 43.4597, "lon": 6.3033}, {"nom": "Tourrettes", "insee": "83138", "cp": "83440", "lat": 43.6281, "lon": 6.7472}, {"nom": "Tourtour", "insee": "83139", "cp": "83690", "lat": 43.5936, "lon": 6.3719}, {"nom": "Tourves", "insee": "83140", "cp": "83170", "lat": 43.41, "lon": 6.0019}, {"nom": "Trans-en-Provence", "insee": "83141", "cp": "83720", "lat": 43.5144, "lon": 6.4856}, {"nom": "Trigance", "insee": "83142", "cp": "83840", "lat": 43.7492, "lon": 6.4397}, {"nom": "Le Val", "insee": "83143", "cp": "83143", "lat": 43.4706, "lon": 6.0175}, {"nom": "La Valette-du-Var", "insee": "83144", "cp": "83160", "lat": 43.1394, "lon": 5.9842}, {"nom": "Varages", "insee": "83145", "cp": "83670", "lat": 43.5558, "lon": 5.9525}, {"nom": "La Verdière", "insee": "83146", "cp": "83560", "lat": 43.5928, "lon": 5.9717}, {"nom": "Vérignon", "insee": "83147", "cp": "83630", "lat": 43.6994, "lon": 6.2072}, {"nom": "Vidauban", "insee": "83148", "cp": "83550", "lat": 43.4161, "lon": 6.4286}, {"nom": "Villecroze", "insee": "83149", "cp": "83690", "lat": 43.5644, "lon": 6.2931}, {"nom": "Vinon-sur-Verdon", "insee": "83150", "cp": "83560", "lat": 43.7278, "lon": 5.8133}, {"nom": "Vins-sur-Caramy", "insee": "83151", "cp": "83170", "lat": 43.3894, "lon": 6.0853}];
+
+// --- MODULE RECHERCHE PAR COMMUNE -------------------------------------------
+var communeMarker  = null;
+var communeContour = null;
+
+function communeClear() {
+  var inp = document.getElementById('commune-input');
+  if (inp) inp.value = '';
+  var sugg = document.getElementById('commune-sugg');
+  if (sugg) sugg.style.display = 'none';
+  if (communeMarker)  { map.removeLayer(communeMarker);  communeMarker  = null; }
+  if (communeContour) { map.removeLayer(communeContour); communeContour = null; }
+}
+
+function communeSearch() {
+  var val = document.getElementById('commune-input').value.trim().toLowerCase();
+  if (!val || val.length < 2) return;
+  document.getElementById('commune-sugg').style.display = 'none';
+  // Recherche locale dans COMMUNES_VAR — zéro réseau
+  var result = COMMUNES_VAR.find(function(c) {
+    return c.nom.toLowerCase() === val;
+  });
+  // Si pas de correspondance exacte, prendre le premier qui commence par val
+  if (!result) {
+    result = COMMUNES_VAR.find(function(c) {
+      return c.nom.toLowerCase().startsWith(val);
+    });
+  }
+  if (!result) {
+    communeInputErreur();
+    return;
+  }
+  communeAfficher(result);
+}
+
+function communeAfficher(commune) {
+  if (communeMarker)  { map.removeLayer(communeMarker);  communeMarker  = null; }
+  if (communeContour) { map.removeLayer(communeContour); communeContour = null; }
+
+  var lat  = commune.lat;
+  var lon  = commune.lon;
+  var nom  = commune.nom;
+  var code = commune.insee;
+
+  if (!lat || !lon) { communeInputErreur(); return; }
+
+  // Code DFCI via lookup exact dans DFCI_2KM (même fonction que les véhicules)
+  var dfciCode = latLngToDFCI(lat, lon) || '—';
+
+  // Popup
+  var popupHtml =
+    '<div style="padding:8px 4px;text-align:center;">' +
+    '<div style="font-size:17px;font-weight:700;color:#e8a020;margin-bottom:4px;">' + nom + '</div>' +
+    '<div style="font-size:11px;color:#8a9bb0;margin-bottom:8px;">Commune — Var (83) — INSEE ' + code + '</div>' +
+    '<div style="border-top:1px solid #2a3040;padding-top:8px;">' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;">' +
+      '<span style="color:#6a7a8a;">Code DFCI</span>' +
+      '<span style="color:#e8a020;font-weight:700;">' + dfciCode + '</span>' +
+    '</div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;">' +
+      '<span style="color:#6a7a8a;">Coordonnées</span>' +
+      '<span style="color:#e0e0e0;font-size:11px;">' + lat.toFixed(4) + 'N  ' + lon.toFixed(4) + 'E</span>' +
+    '</div>' +
+    '</div></div>';
+
+  // Marqueur géocentré — posé immédiatement, zéro latence
+  communeMarker = L.marker([lat, lon], {
+    icon: L.divIcon({
+      className: '',
+      html: '<div style="width:26px;height:26px;background:#e8a020;border:3px solid #fff;' +
+            'border-radius:50%;box-shadow:0 2px 10px rgba(0,0,0,0.6);' +
+            'display:flex;align-items:center;justify-content:center;font-size:13px;">🏘</div>',
+      iconSize: [26,26], iconAnchor: [13,13]
+    })
+  }).addTo(map);
+  communeMarker.bindPopup(popupHtml, { className:'custom-popup', maxWidth:260 }).openPopup();
+
+  // Centrer immédiatement sur les coords locales
+  map.setView([lat, lon], 13, { animate: true });
+
+  // Contour depuis API en arrière-plan (optionnel — non bloquant)
+  fetch('https://geo.api.gouv.fr/communes/' + code
+      + '?fields=contour&format=json&geometry=contour')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data || !data.contour) return;
+      communeContour = L.geoJSON(data, {
+        style: { color:'#ff3333', weight:2.5, fillColor:'#ff3333', fillOpacity:0.08, dashArray:'6,4' }
+      }).addTo(map);
+      // Ajuster le zoom sur le contour réel sans déplacer si on est déjà bien centré
+      map.fitBounds(communeContour.getBounds(), { padding:[30,30], maxZoom:14 });
+    })
+    .catch(function() {}); // silencieux si réseau absent
+}
+
+function communeInputErreur() {
+  var inp = document.getElementById('commune-input');
+  if (!inp) return;
+  inp.style.borderColor = '#ef5350';
+  setTimeout(function() { inp.style.borderColor = ''; }, 2000);
+}
+
+function initCommuneSearch() {
+  var inp  = document.getElementById('commune-input');
+  var sugg = document.getElementById('commune-sugg');
+  if (!inp || !sugg) return;
+
+  inp.addEventListener('input', function() {
+    var val = inp.value.trim().toLowerCase();
+    sugg.innerHTML = '';
+    sugg.style.display = 'none';
+    if (val.length < 2) return;
+    // Filtrage local instantané
+    var matches = COMMUNES_VAR.filter(function(c) {
+      return c.nom.toLowerCase().includes(val);
+    }).slice(0, 10);
+    if (matches.length === 0) return;
+    sugg.style.display = 'block';
+    matches.forEach(function(com) {
+      var div = document.createElement('div');
+      div.className = 'dfci-suggestion';
+      div.innerHTML = '<span class="dfci-sug-code" style="color:#e8a020;">' + com.nom + '</span>'
+                    + '<span class="dfci-sug-type">' + com.cp + '</span>';
+      div.onclick = function() {
+        inp.value = com.nom;
+        sugg.style.display = 'none';
+        communeAfficher(com);
+      };
+      sugg.appendChild(div);
+    });
+  });
+
+  inp.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter')  { communeSearch(); sugg.style.display = 'none'; }
+    if (e.key === 'Escape') sugg.style.display = 'none';
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  initAutoComplete(1);
+  initAutoComplete(2);
+  initAutoComplete(3);
+  initAutoComplete(4);
+  initCommuneSearch();
+  document.addEventListener('click', function(e) {
+    [1,2,3,4].forEach(function(n) {
+      var inp = document.getElementById('dfci-input-'+n);
+      var box = inp ? inp.closest('.dfci-search-box') : null;
+      if (box && !box.contains(e.target)) {
+        var sugg = document.getElementById('dfci-sugg-'+n);
+        if (sugg) sugg.style.display='none';
+      }
+    });
+    var cbox = document.getElementById('commune-search-box');
+    if (cbox && !cbox.contains(e.target)) {
+      var cs = document.getElementById('commune-sugg');
+      if (cs) cs.style.display = 'none';
+    }
+  });
+});
+
+// --- CADRES INCIDENTS -------------------------------------------------------
+// Ordre de priorité pour le tri des panneaux
+var STATUT_A_PRIORITE = {
+  'traitement': 1, 'encours': 2, 'confirme': 3,
+  'signale': 4, 'noyage': 5, 'termine': 6, '': 99
+};
+
+var STATUT_A_OPTIONS = [
+  { val:'',           label:'— Statut incident —' },
+  { val:'signale',    label:'🟡 Signalé' },
+  { val:'confirme',   label:'🟠 Confirmé' },
+  { val:'traitement', label:'🔴 Traitement' },
+  { val:'encours',    label:'⚫ En Cours' },
+  { val:'noyage',     label:'🔵 Noyage' },
+  { val:'termine',    label:'🟢 Terminé' }
+];
+
+var STATUT_B_OPTIONS = [
+  { val:'',        label:'— Intervention —' },
+  { val:'sdis',    label:'SDIS' },
+  { val:'ccff',    label:'CCFF Local' },
+  { val:'harpon',  label:'CCFF HARPON83' },
+  { val:'onf',     label:'ONF' },
+  { val:'aerien',  label:'AÉRIEN' },
+  { val:'autre1',  label:'Autre 1' },
+  { val:'autre2',  label:'Autre 2' }
+];
+
+// Données de chaque slot (initialisées vides)
+var modeDemo  = false;  // déclaré ici pour les cadres incidents
+
+var incidentData = {
+  1: { code:'', commune:'', statutA:'', statutB:'', ts: null, collapsed: false,
+       responsable:'', tel:'', moyen:'', acces:'', pointeau:'', observations:'', hdebut:'', hfin:'' },
+  2: { code:'', commune:'', statutA:'', statutB:'', ts: null, collapsed: false,
+       responsable:'', tel:'', moyen:'', acces:'', pointeau:'', observations:'', hdebut:'', hfin:'' },
+  3: { code:'', commune:'', statutA:'', statutB:'', ts: null, collapsed: false,
+       responsable:'', tel:'', moyen:'', acces:'', pointeau:'', observations:'', hdebut:'', hfin:'' },
+  4: { code:'', commune:'', statutA:'', statutB:'', ts: null, collapsed: false,
+       responsable:'', tel:'', moyen:'', acces:'', pointeau:'', observations:'', hdebut:'', hfin:'' }
+};
+
+// Données test fictives (seront remplacées par BDD VPS)
+var FICHE_TEST = {
+  'LD42G6': { responsable:'Martin Bernard', tel:'06 12 34 56 78',
+              moyen:'VL-83-001', acces:'Piste DFCI n°12', pointeau:'PE-LD42-003',
+              observations:'Zone broussailleuse, accès difficile' },
+  'LD43H7': { responsable:'Sophie Roux', tel:'06 98 76 54 32',
+              moyen:'CCF-83-02', acces:'RD 559 puis chemin', pointeau:'PE-LD43-007',
+              observations:'Secteur sous surveillance renforcée' }
+};
+
+function buildSelectHTML(opts, selVal, id, onchange) {
+  var html = '<select class="ic-select" id="'+id+'" onchange="'+onchange+'">';
+  opts.forEach(function(o) {
+    html += '<option value="'+o.val+'"'+(o.val===selVal?' selected':'')+'>'+o.label+'</option>';
+  });
+  html += '</select>';
+  return html;
+}
+
+function getStatutClass(statutA) {
+  var map = {
+    'signale':'ic-statut-signale', 'confirme':'ic-statut-confirme',
+    'traitement':'ic-statut-traitement', 'encours':'ic-statut-encours',
+    'noyage':'ic-statut-noyage', 'termine':'ic-statut-termine'
+  };
+  return map[statutA] || 'ic-statut-default';
+}
+
+function icInput(n, field, placeholder, val) {
+  // Génère un input sans onchange inline — le handler est délégué sur #incidents-panel
+  return '<input class="ic-cell-input" data-n="'+n+'" data-field="'+field+'"'
+       + ' value="'+val+'" placeholder="'+placeholder+'"/>';
+}
+
+function renderIncidentCard(n) {
+  var d   = incidentData[n];
+  var col = COULEURS[n];
+  if (!d.code) return '';
+
+  var fiche = FICHE_TEST[d.code] || {};
+  var heureCreation = d.ts ? new Date(d.ts).toTimeString().slice(0,5) : '--:--';
+  var sA = getStatutClass(d.statutA);
+
+  var isCollapsed = d.collapsed ? ' collapsed' : '';
+  return '<div class="incident-card'+isCollapsed+'" id="ic-card-'+n+'">'
+    + '<div class="ic-header '+sA+'">'
+    +   '<div class="ic-header-left" onclick="toggleCollapseCard('+n+')" style="flex:1;cursor:pointer;">'
+    +     '<span class="ic-slot" style="color:'+col.fill+';">'+col.label+'</span>'
+    +     '<span class="ic-code">'+d.code+'</span>'
+    +     '<span class="ic-toggle-icon">▼</span>'
+    +   '</div>'
+    +   '<button class="ic-close" onclick="fermerIncident('+n+')" title="Fermer">✕</button>'
+    + '</div>'
+    + '<div class="ic-commune '+sA+'">📍 '+(d.commune || '...')+'</div>'
+    + '<div class="ic-body">'
+    +   '<div class="ic-statuts">'
+    +     buildSelectHTML(STATUT_A_OPTIONS, d.statutA, 'ic-sa-'+n, 'onChangeStatutA('+n+',this.value)')
+    +     buildSelectHTML(STATUT_B_OPTIONS, d.statutB, 'ic-sb-'+n, 'onChangeStatutB('+n+',this.value)')
+    +   '</div>'
+    +   '<div class="ic-grid">'
+    +     '<div class="ic-cell"><div class="ic-cell-label">Responsable CCFF</div>'
+    +       icInput(n,'responsable','Nom prénom', d.responsable||fiche.responsable||'')+'</div>'
+    +     '<div class="ic-cell"><div class="ic-cell-label">Tél</div>'
+    +       icInput(n,'tel','06 00 00 00 00', d.tel||fiche.tel||'')+'</div>'
+    +     '<div class="ic-cell"><div class="ic-cell-label">Moyen engagé</div>'
+    +       icInput(n,'moyen','VL, CCF...', d.moyen||fiche.moyen||'')+'</div>'
+    +     '<div class="ic-cell"><div class="ic-cell-label">Point d\u0027eau</div>'
+    +       icInput(n,'pointeau','Réf. point eau', d.pointeau||fiche.pointeau||'')+'</div>'
+    +     '<div class="ic-cell"><div class="ic-cell-label">Accès / Piste</div>'
+    +       icInput(n,'acces','Itinéraire...', d.acces||fiche.acces||'')+'</div>'
+    +     '<div class="ic-cell"><div class="ic-cell-label">Heure début</div>'
+    +       icInput(n,'hdebut','HH:MM', d.hdebut||'')+'</div>'
+    +     '<div class="ic-cell full"><div class="ic-cell-label">Observations</div>'
+    +       icInput(n,'observations','Notes libres...', d.observations||fiche.observations||'')+'</div>'
+    +     '<div class="ic-cell"><div class="ic-cell-label">Heure fin</div>'
+    +       icInput(n,'hfin','HH:MM', d.hfin||'')+'</div>'
+    +     '<div class="ic-cell"><div class="ic-cell-label">Créé à</div>'
+    +       '<input class="ic-cell-input" value="'+heureCreation+'" readonly style="color:#6a7a8a;"/></div>'
+    +   '</div>'
+    + '</div>'
+    + '</div>';
+}
+
+function renderIncidentsPanel() {
+  if (!modeDemo) return; // Uniquement en mode DEMO
+  var panel = document.getElementById('incidents-panel');
+  if (!panel) return;
+
+  // Trier les slots actifs par priorité statut A, puis chronologique
+  var slots = [1,2,3,4].filter(function(n){ return !!incidentData[n].code; });
+  slots.sort(function(a,b) {
+    var pa = STATUT_A_PRIORITE[incidentData[a].statutA] || 99;
+    var pb = STATUT_A_PRIORITE[incidentData[b].statutA] || 99;
+    if (pa !== pb) return pa - pb;
+    return (incidentData[a].ts || 0) - (incidentData[b].ts || 0);
+  });
+
+  panel.innerHTML = slots.map(function(n){ return renderIncidentCard(n); }).join('');
+
+  // Handler délégué pour tous les inputs — évite les onchange inline avec apostrophes
+  panel.querySelectorAll('.ic-cell-input[data-field]').forEach(function(el) {
+    el.addEventListener('change', function() {
+      saveField(parseInt(this.dataset.n), this.dataset.field, this.value);
+    });
+  });
+}
+
+function ouvrirIncident(n, code, commune) {
+  if (!modeDemo) return; // Uniquement en mode DEMO
+  incidentData[n].code    = code;
+  incidentData[n].commune = commune || '';
+  if (!incidentData[n].ts) incidentData[n].ts = Date.now();
+  renderIncidentsPanel();
+}
+
+function toggleCollapseCard(n) {
+  incidentData[n].collapsed = !incidentData[n].collapsed;
+  var card = document.getElementById('ic-card-'+n);
+  if (card) card.classList.toggle('collapsed');
+}
+
+function fermerIncident(n) {
+  incidentData[n] = { code:'', commune:'', statutA:'', statutB:'', ts:null, collapsed:false,
+    responsable:'', tel:'', moyen:'', acces:'', pointeau:'', observations:'', hdebut:'', hfin:'' };
+  renderIncidentsPanel();
+}
+
+function onChangeStatutA(n, val) {
+  incidentData[n].statutA = val;
+  renderIncidentsPanel();
+  // Remettre le focus sur le select après re-render
+  var el = document.getElementById('ic-sa-'+n);
+  if (el) el.focus();
+}
+
+function onChangeStatutB(n, val) {
+  incidentData[n].statutB = val;
+  saveField(n, 'statutB', val);
+}
+
+function saveField(n, field, val) {
+  incidentData[n][field] = val;
+  // Ici : appel API VPS quand disponible
+}
+
+// MODE DEMO / EXPLOITATION -----------------------------------------------
+var PIN_CODE  = '83086';  // <- changer ici pour personnaliser
+
+function appliquerMode() {
+  var sidebar = document.getElementById('sidebar');
+  var pill    = document.getElementById('proto-pill');
+  var btn     = document.getElementById('mode-btn');
+  if (!btn) return;
+
+  if (modeDemo) {
+    // ── MODE DEMO : tout visible ──────────────────────────────────────
+    sidebar.style.display = 'flex';
+    if (pill) pill.style.display = 'flex';
+    btn.innerHTML = '&#10006; EXPLOITATION';
+    btn.classList.add('demo-actif');
+    btn.title = 'Revenir en mode Exploitation';
+    simulationActive = true;
+    // Ajouter les vehicules simules au cluster
+    vehicules.forEach(function(v) {
+      if (!v.traccarId && markers[v.id]) {
+        if (!clusterGroup.hasLayer(markers[v.id].marker)) {
+          clusterGroup.addLayer(markers[v.id].marker);
+        }
+      }
+    });
+    renderList(document.getElementById('secteur-filter').value);
+  } else {
+    // ── MODE EXPLOITATION : carte epuree ─────────────────────────────
+    sidebar.style.display = 'none';
+    if (pill) pill.style.display = 'none';
+    btn.innerHTML = '&#9881; MODE DEMO';
+    btn.classList.remove('demo-actif');
+    btn.title = 'Activer le mode demonstration (PIN requis)';
+    simulationActive = false;
+    // Masquer le panel incidents en mode exploitation
+    var panel = document.getElementById('incidents-panel');
+    if (panel) panel.innerHTML = '';
+    // Retirer les vehicules simules du cluster
+    vehicules.forEach(function(v) {
+      if (!v.traccarId && markers[v.id]) {
+        if (clusterGroup.hasLayer(markers[v.id].marker)) {
+          clusterGroup.removeLayer(markers[v.id].marker);
+        }
+      }
+    });
+  }
+}
+
+function toggleModeDemo() {
+  if (modeDemo) {
+    // Retour en exploitation : immédiat, pas de PIN
+    modeDemo = false;
+    appliquerMode();
+  } else {
+    // Passer en démo : demander le PIN
+    document.getElementById('pin-overlay').classList.add('visible');
+    setTimeout(function(){ document.getElementById('pin-input').focus(); }, 100);
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-error').textContent = '';
+  }
+}
+
+function pinValider() {
+  var saisi = document.getElementById('pin-input').value;
+  if (saisi === PIN_CODE) {
+    document.getElementById('pin-overlay').classList.remove('visible');
+    modeDemo = true;
+    appliquerMode();
+  } else {
+    document.getElementById('pin-error').textContent = 'Code incorrect — réessayer';
+    document.getElementById('pin-input').value = '';
+    document.getElementById('pin-input').focus();
+    setTimeout(function(){ document.getElementById('pin-error').textContent=''; }, 2000);
+  }
+}
+
+function pinAnnuler() {
+  document.getElementById('pin-overlay').classList.remove('visible');
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').textContent = '';
+}
+
+// Variable contrôlant la simulation
+var simulationActive = false;  // Désactivée par défaut (mode exploitation)
+
+// Initialiser en mode exploitation au chargement
+window.addEventListener('load', function() {
+  // Appliquer le mode après initialisation complete
+  setTimeout(function() { appliquerMode(); }, 500);
+});
+
+// --- PIN ENTREE — protection accès carto ----------------------------------------
+var PIN_ENTREE = '4321';
+
+function pinEntreeValider() {
+  var saisi = document.getElementById('pin-entree-input').value;
+  if (saisi === PIN_ENTREE) {
+    document.getElementById('pin-entree-overlay').classList.add('hidden');
+    document.getElementById('pin-entree-input').value = '';
+    // Forcer Leaflet à recalculer la taille de la carte (overlay PIN masquait le rendu)
+    setTimeout(function() {
+      map.invalidateSize();
+      // Forcer aussi le rendu du panel incidents si une recherche a été faite
+      renderIncidentsPanel();
+    }, 100);
+  } else {
+    var err = document.getElementById('pin-entree-error');
+    err.textContent = 'Code incorrect — réessayer';
+    document.getElementById('pin-entree-input').value = '';
+    document.getElementById('pin-entree-input').focus();
+    // Shake animation
+    var box = document.getElementById('pin-entree-box');
+    box.style.transform = 'translateX(-8px)';
+    setTimeout(function(){ box.style.transform = 'translateX(8px)'; }, 80);
+    setTimeout(function(){ box.style.transform = 'translateX(-6px)'; }, 160);
+    setTimeout(function(){ box.style.transform = 'translateX(0)'; }, 240);
+    setTimeout(function(){ err.textContent = ''; }, 2500);
+  }
+}
+
+// Focuser automatiquement le champ PIN à l'ouverture
+window.addEventListener('load', function() {
+  setTimeout(function() {
+    var inp = document.getElementById('pin-entree-input');
+    if (inp) inp.focus();
+  }, 200);
+});
+
+// --- TRACCAR GPS TEMPS REEL -------------------------------------------------
+var TRACCAR_URL   = 'https://demo3.traccar.org';
+var TRACCAR_TOKEN = 'RzBFAiEAzcAWsjsHy53V77Fhz_sLF9NaLxnoYxuT21igqFtqLGsCID5yxLTD-6VP3EYC1jos4nu4M6ZzwBl_VlwSt1RzlI2LeyJpIjo3MTY5MDE5MzIzODEwNDUxNjU5LCJ1Ijo2NTAzLCJlIjoiMjAyNi0wNC0wOFQyMjowMDowMC4wMDArMDA6MDAifQ';
+var TRACCAR_DEVICES = {
+  75864832: { nom:'Smartphone_GG', type:'cmd', secteur:'Maures' }
+};
+var traccarActif = false;
+
+function fetchTraccar() {
+  fetch(TRACCAR_URL + '/api/positions', {
+    headers: {
+      'Authorization': 'Bearer ' + TRACCAR_TOKEN,
+      'Accept': 'application/json'
+    }
+  })
+  .then(function(r) {
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  })
+  .then(function(positions) {
+    if (!positions || positions.length === 0) return;
+    traccarActif = true;
+    // Mettre a jour le badge statut
+    var pill = document.querySelector('.status-pill');
+    if (pill) {
+      pill.style.background = '#1a3a1a';
+      pill.style.borderColor = '#2d7a2d';
+      pill.style.color = '#4caf50';
+      pill.innerHTML = 'GPS TEMPS REEL - demo3.traccar.org';
+    }
+    positions.forEach(function(pos) {
+      var devId  = pos.deviceId;
+      var lat    = pos.latitude;
+      var lon    = pos.longitude;
+      var speed  = Math.round((pos.speed || 0) * 1.852); // noeuds -> km/h
+      var heure  = new Date(pos.fixTime || pos.serverTime).toTimeString().slice(0,5);
+      var info   = TRACCAR_DEVICES[devId];
+      if (!info) {
+        // Device inconnu - l'ajouter dynamiquement
+        info = { nom:'Device-' + devId, type:'4x4', secteur:'Var' };
+        TRACCAR_DEVICES[devId] = info;
+      }
+      // Trouver le vehicule correspondant dans notre tableau
+      var found = false;
+      for (var i=0; i<vehicules.length; i++) {
+        if (vehicules[i].traccarId === devId) {
+          vehicules[i].lat     = lat;
+          vehicules[i].lng     = lon;
+          vehicules[i].vitesse = speed;
+          vehicules[i].heure   = heure;
+          vehicules[i].statut  = speed > 2 ? 'patrouille' : 'attente';
+          if (markers[vehicules[i].id]) {
+            markers[vehicules[i].id].marker.setLatLng([lat, lon]);
+            // Reconstruire le popup en respectant le toggle position actuel
+            var mkrObj = markers[vehicules[i].id];
+            mkrObj.marker.getPopup().setContent(buildVehiclePopup(vehicules[i]));
+          }
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        // Creer un nouveau vehicule pour ce device Traccar
+        var newId = 100 + devId % 1000;
+        var newVeh = {
+          id: newId, nom: info.nom, type: info.type,
+          secteur: info.secteur, lat: lat, lng: lon,
+          statut: speed > 2 ? 'patrouille' : 'attente',
+          vitesse: speed, equipe: 'GPS Live', heure: heure,
+          traccarId: devId
+        };
+        vehicules.push(newVeh);
+        // Creer le marqueur
+        var bgColor   = newVeh.type==='4x4' ? '#1a3a1a' : newVeh.type==='eau' ? '#1a2a3a' : '#3a1a1a';
+        var typeIcon  = newVeh.type==='4x4' ? '&#x1F699;' : newVeh.type==='eau' ? '&#x1F692;' : '&#x2B50;';
+        var typeLabel = newVeh.type==='4x4' ? '4x4 / VLTT' : newVeh.type==='eau' ? 'Porteur eau / CCF' : 'Commandement';
+        var popup = '<div class="popup-inner">'
+          + '<div class="popup-header">'
+          + '<div class="popup-icon" style="background:' + bgColor + '">' + typeIcon + '</div>'
+          + '<div><div class="popup-title">' + newVeh.nom + ' <span style="color:#4caf50;font-size:10px;">LIVE</span></div>'
+          + '<div class="popup-sub">' + typeLabel + ' - ' + newVeh.secteur + '</div></div>'
+          + '</div>'
+          + '<div class="popup-row"><span class="lbl">Statut</span><span class="val green">GPS temps reel</span></div>'
+          + '<div class="popup-row"><span class="lbl">Vitesse</span><span class="val">' + Math.round(speed) + ' km/h</span></div>'
+          + '<div class="popup-row"><span class="lbl">MAJ</span><span class="val">' + heure + '</span></div>'
+          + '</div>';
+        var mkr = L.marker([lat, lon], { icon: makeIcon(newVeh.type, newVeh.statut) })
+          .bindPopup(popup, { className:'custom-popup', maxWidth:280 })
+          .on('click', function(){ selectVehicle(newId); });
+        markers[newId] = { marker: mkr, data: newVeh };
+        clusterGroup.addLayer(mkr);
+        // Centrer la carte sur la premiere position reelle
+        map.setView([lat, lon], 13, { animate: true });
+      }
+    });
+    // Mettre a jour compteurs
+    updateStats();
+    renderList(document.getElementById('secteur-filter').value);
+  })
+  .catch(function(err) {
+    console.warn('Traccar fetch erreur:', err.message);
+  });
+}
+
+function updateStats() {
+  var actif   = vehicules.filter(function(v){return v.statut==='patrouille';}).length;
+  var attente = vehicules.filter(function(v){return v.statut==='attente';}).length;
+  var hs      = vehicules.filter(function(v){return v.statut==='hs';}).length;
+  document.getElementById('stat-total').textContent  = vehicules.length;
+  document.getElementById('stat-actif').textContent  = actif;
+  document.getElementById('stat-attente').textContent = attente;
+  document.getElementById('stat-hs').textContent     = hs;
+  diffuserStatsVehicules();
+}
+
+// Demarrer le polling Traccar toutes les 30s
+fetchTraccar();
+setInterval(fetchTraccar, 30000);
+
+// --- BROADCASTCHANNEL — sync avec gestion.html --------------------------------
+// (canal déjà ouvert en tête de script — fonctions de diffusion ci-dessous)
+
+function diffuserStatsVehicules() {
+  if (!ccffChannel) return;
+  var actif   = vehicules.filter(function(v){ return v.statut === 'patrouille'; }).length;
+  var attente = vehicules.filter(function(v){ return v.statut === 'attente'; }).length;
+  var hs      = vehicules.filter(function(v){ return v.statut === 'hs'; }).length;
+  ccffChannel.postMessage({
+    type: 'vehicules-update',
+    stats: { total: vehicules.length, actif: actif, attente: attente, hs: hs }
+  });
+}
+
+// ── Marqueurs patrouilles sur la carte (depuis gestion.html) ─────────────────
+function afficherMarqueursPatrouilles(patrouilles) {
+  // Supprimer les anciens marqueurs
+  Object.keys(marqueursPatrouilles).forEach(function(id) {
+    map.removeLayer(marqueursPatrouilles[id]);
+  });
+  marqueursPatrouilles = {};
+
+  console.log('[F4] patrouilles reçues:', patrouilles.length, patrouilles);
+
+  patrouilles.forEach(function(pat) {
+    if (pat.statut !== 'actif') return;
+    console.log('[F4] géocodage commune:', pat.commune);
+
+    fetch('https://geo.api.gouv.fr/communes?nom='
+          + encodeURIComponent(pat.commune)
+          + '&fields=centre&format=json&limit=1')
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        console.log('[F4] réponse API pour', pat.commune, ':', data);
+        if (!data || data.length === 0) {
+          console.warn('[F4] commune introuvable:', pat.commune);
+          return;
+        }
+        var coords = data[0].centre && data[0].centre.coordinates;
+        if (!coords) {
+          console.warn('[F4] pas de coordonnées centre pour:', pat.commune, data[0]);
+          return;
+        }
+        var lng = coords[0], lat = coords[1];
+        console.log('[F4] marqueur posé à', lat, lng, 'pour', pat.commune);
+        var html = '<div style="'
+          + 'background:#1e7e3488;border:2px solid #4caf50;border-radius:50%;'
+          + 'width:32px;height:32px;display:flex;align-items:center;'
+          + 'justify-content:center;font-size:16px;'
+          + 'box-shadow:0 2px 8px rgba(0,0,0,0.5);">🚶</div>';
+        var mkr = L.marker([lat, lng], {
+          icon: L.divIcon({ html: html, className: '', iconSize: [32,32], iconAnchor: [16,16] }),
+          zIndexOffset: 500
+        }).bindPopup(
+          '<div class="popup-inner" style="min-width:180px;">'
+          + '<div class="popup-header">'
+          + '<div class="popup-icon" style="background:#1a3a1a;font-size:18px;">🚶</div>'
+          + '<div><div class="popup-title">' + pat.num + '</div>'
+          + '<div class="popup-sub">Patrouille — ' + pat.commune + '</div></div>'
+          + '</div>'
+          + '<div class="popup-row"><span class="lbl">Équipe</span><span class="val">' + pat.equipe + '</span></div>'
+          + '<div class="popup-row"><span class="lbl">Statut</span><span class="val green">🟢 Active</span></div>'
+          + '<div class="popup-row"><span class="lbl">Depuis</span><span class="val">' + pat.heure + '</span></div>'
+          + '</div>',
+          { className: 'custom-popup', maxWidth: 240 }
+        );
+        map.addLayer(mkr);
+        marqueursPatrouilles[pat.id] = mkr;
+      })
+      .catch(function(err){
+        console.error('[F4] fetch erreur pour', pat.commune, ':', err);
+      });
+  });
+}
+
+// Diffuser les stats toutes les 30s vers gestion.html
+setInterval(diffuserStatsVehicules, 30000);
+setInterval(function() {
+  if (!simulationActive) return;  // Mode exploitation = pas de simulation
+  if (traccarActif) return;       // Traccar actif = pas de simulation
+  vehicules.forEach(function(v) {
+    if (v.traccarId) return;
+    if (v.statut === 'patrouille' && v.vitesse > 0) {
+      v.lat += (Math.random() - 0.5) * 0.004;
+      v.lng += (Math.random() - 0.5) * 0.004;
+      v.vitesse = Math.max(5, Math.min(65, v.vitesse + (Math.random()-0.5)*8));
+      v.heure = new Date().toTimeString().slice(0,5);
+      if (markers[v.id]) {
+        markers[v.id].marker.setLatLng([v.lat, v.lng]);
+        // Reconstruire le popup en respectant le toggle position actuel
+        markers[v.id].marker.getPopup().setContent(buildVehiclePopup(v));
+      }
+    }
+  });
+  renderList(document.getElementById('secteur-filter').value);
+}, 5000);
+</script>
+
+<!-- PIN OVERLAY -->
+<div id="pin-overlay">
+  <div id="pin-box">
+    <h2>🔒 Accès MODE DEMO</h2>
+    <p>Saisir le code PIN à 5 chiffres</p>
+    <input id="pin-input" type="password" inputmode="numeric"
+           maxlength="5" placeholder="•••••"
+           onkeydown="if(event.key==='Enter') pinValider()"/>
+    <div id="pin-error"></div>
+    <div class="pin-actions">
+      <button class="pin-btn pin-btn-cancel" onclick="pinAnnuler()">Annuler</button>
+      <button class="pin-btn pin-btn-ok"     onclick="pinValider()">Valider</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
