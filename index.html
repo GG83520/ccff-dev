@@ -1327,7 +1327,16 @@ function setLayer(key) {
   map.removeLayer(currentLayer);
   currentLayer = layers[key].addTo(map);
   currentLayerKey = key;
+  // Remettre les couches superposées au premier plan après changement de fond
   if (massifLayer) massifLayer.bringToFront();
+  // Remettre les couches WMS CII au premier plan
+  Object.keys(wmsLayers).forEach(function(k) {
+    if (wmsLayers[k]) {
+      wmsLayers[k].bringToFront();
+    }
+  });
+  // Remettre DFCI IGN au premier plan
+  if (typeof dfciIgnLayer !== 'undefined' && dfciIgnLayer) dfciIgnLayer.bringToFront();
   document.querySelectorAll('.layer-btn').forEach((btn,i) => {
     if (i < 4) btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${key}'`));
   });
