@@ -1149,7 +1149,7 @@
       <button class="layer-btn active" onclick="setLayer('osm')">🗺 OpenStreetMap</button>
       <button class="layer-btn" onclick="setLayer('osm-topo')">🏔 Topo (OpenTopoMap)</button>
       <button class="layer-btn" onclick="setLayer('satellite')">🛰 Satellite Esri</button>
-      <button class="layer-btn" onclick="setLayer('esri-topo')">🗾 Topo Esri</button>
+      <button class="layer-btn" onclick="setLayer('ign-topo')">🗺 IGN SCAN25</button>
       <div style="border-top:1px solid #2a3040;margin:4px 0;"></div>
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:#6a7a8a;letter-spacing:1px;padding:2px 4px 4px;">COUCHES</div>
       <button class="layer-btn disabled" id="btn-massifs" title="Couche temporairement désactivée">🌲 Massifs forestiers</button>
@@ -1318,9 +1318,11 @@ const layers = {
     'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     { maxZoom: 19, attribution: '© Esri World Imagery' }
   ),
-  'esri-topo': L.tileLayer(
-    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-    { maxZoom: 19, attribution: '© Esri World Topo' }
+  'ign-topo': L.tileLayer(
+    'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0' +
+    '&LAYER=GEOGRAPHICALGRIDSYSTEMS.MAPS&STYLE=normal&TILEMATRIXSET=PM' +
+    '&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png',
+    { maxZoom: 18, attribution: '© IGN Géoportail &mdash; SCAN25' }
   )
 };
 
@@ -2591,6 +2593,10 @@ function appliquerMode() {
         }
       }
     });
+    // Afficher les véhicules MyFleet24 en mode DEMO
+    Object.keys(myfleetMarkers).forEach(function(lbl) {
+      if (!map.hasLayer(myfleetMarkers[lbl])) map.addLayer(myfleetMarkers[lbl]);
+    });
     renderList(document.getElementById('secteur-filter').value);
   } else {
     // ── MODE EXPLOITATION : carte epuree ─────────────────────────────
@@ -2610,6 +2616,10 @@ function appliquerMode() {
           clusterGroup.removeLayer(markers[v.id].marker);
         }
       }
+    });
+    // Masquer les véhicules MyFleet24 en mode EXPLOITATION
+    Object.keys(myfleetMarkers).forEach(function(lbl) {
+      if (map.hasLayer(myfleetMarkers[lbl])) map.removeLayer(myfleetMarkers[lbl]);
     });
   }
 }
@@ -2862,15 +2872,20 @@ function fetchMyfleet() {
     })
     .then(function(data) {
       var devices = [];
-      if (Array.isArray(data))                          devices = data;
-      else if (data.DEVICE)                             devices = Array.isArray(data.DEVICE) ? data.DEVICE : [data.DEVICE];
-      else if (data.devices)                            devices = data.devices;
-      else if (data.LocationAPI && data.LocationAPI.DEVICE) {
-        var d = data.LocationAPI.DEVICE;
+      // Structure réelle : data.RESULT.DEVICE
+      if (data.RESULT && data.RESULT.DEVICE) {
+        var d = data.RESULT.DEVICE;
         devices = Array.isArray(d) ? d : [d];
-      }
+      } else if (Array.isArray(data))          { devices = data; }
+      else if (data.DEVICE)                    { devices = Array.isArray(data.DEVICE) ? data.DEVICE : [data.DEVICE]; }
+      else if (data.devices)                   { devices = data.devices; }
       if (devices.length === 0) {
         console.warn('[MyFleet] Aucun device — structure:', JSON.stringify(data).slice(0,200));
+        return;
+      }
+      // Vérifier le statut API
+      if (data.RESULT && data.RESULT.STATUS !== 'OK') {
+        console.warn('[MyFleet] Statut API:', data.RESULT.STATUS);
         return;
       }
       myfleetActif = true;
@@ -2919,7 +2934,8 @@ function fetchMyfleet() {
             icon: makeMyfleetIcon(label, fixgps, speed),
             zIndexOffset: 600
           }).bindPopup(popup, { className: 'custom-popup', maxWidth: 280 });
-          map.addLayer(mkr);
+          // Ajouter à la carte seulement en mode DEMO
+          if (modeDemo) map.addLayer(mkr);
           myfleetMarkers[label] = mkr;
         }
       });
