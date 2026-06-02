@@ -1126,6 +1126,11 @@
       <button class="layer-btn" id="btn-dfci-ign" onclick="toggleDFCI_IGN()">🛰 DFCI IGN (WMTS)</button>
       <button class="layer-btn" id="btn-vigies" onclick="toggleVigies()">📡 Vigies CCFF</button>
       <button class="layer-btn" id="btn-vigies-visu" onclick="toggleVisuVigies()" style="display:none;">👁 Cercles de visu</button>
+      <div style="border-top:1px solid #2a3040;margin:4px 0;"></div>
+      <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:#4caf50;letter-spacing:1px;padding:2px 4px 4px;">PATROUILLES LIVE</div>
+      <button class="layer-btn wms-cii" id="btn-wms-patrouille" onclick="toggleWMS('patrouille')">🚶 Patrouilles actives</button>
+      <button class="layer-btn wms-cii" id="btn-wms-patrouille-txt" onclick="toggleWMS('patrouille_txt')">📋 Détail patrouilles</button>
+      <button class="layer-btn wms-cii" id="btn-wms-vigie" onclick="toggleWMS('vigie')">🔭 Vigies live (CII)</button>
     </div>
 
     <!-- Cadres Incidents — zone DEMO -->
@@ -1322,7 +1327,16 @@ function setLayer(key) {
   map.removeLayer(currentLayer);
   currentLayer = layers[key].addTo(map);
   currentLayerKey = key;
+  // Remettre les couches superposées au premier plan après changement de fond
   if (massifLayer) massifLayer.bringToFront();
+  // Remettre les couches WMS CII au premier plan
+  Object.keys(wmsLayers).forEach(function(k) {
+    if (wmsLayers[k]) {
+      wmsLayers[k].bringToFront();
+    }
+  });
+  // Remettre DFCI IGN au premier plan
+  if (typeof dfciIgnLayer !== 'undefined' && dfciIgnLayer) dfciIgnLayer.bringToFront();
   document.querySelectorAll('.layer-btn').forEach((btn,i) => {
     if (i < 4) btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${key}'`));
   });
@@ -1997,21 +2011,14 @@ var ZONE_LABELS = {
 };
 
 function dfciParseCode(raw) {
-  // ── Nettoyage robuste de la saisie ──────────────────────────────────────
   var s = raw.trim().toUpperCase();
-  // Remplacer les caractères de confusion fréquents sur clavier FR :
-  s = s.replace(/;/g, '.');   // ";" → "." (touches adjacentes sur clavier FR)
-  s = s.replace(/,/g, '.');   // "," → "." (autre confusion courante)
-  s = s.replace(/:/g, '.');   // ":" → "." (Shift+; sur certains claviers)
-  s = s.replace(/\s+/g, ''); // supprimer tous les espaces
-  // Accepter le tiret ou slash comme séparateur de zone : LD44E3-1 ou LD44E3/1
+  s = s.replace(/;/g, '.');
+  s = s.replace(/,/g, '.');
+  s = s.replace(/:/g, '.');
+  s = s.replace(/\s+/g, '');
   s = s.replace(/[-/]([1-5])$/, '.$1');
-  // Accepter la zone collée sans point si dernier caractère est 1-5 après code 2km
-  // ex: LD44E31 → LD44E3.1
   var mFix = s.match(/^([A-Z]{2}\d{2}[A-J]\d)([1-5])$/);
   if (mFix) s = mFix[1] + '.' + mFix[2];
-
-  // ── Parsing standard ────────────────────────────────────────────────────
   var m20 = s.match(/^([A-Z]{2}\d{2})$/);
   var m2  = s.match(/^([A-Z]{2}\d{2}[A-J]\d)$/);
   var m1  = s.match(/^([A-Z]{2}\d{2}[A-J]\d)\.([1-5])$/);
@@ -2142,13 +2149,11 @@ function initAutoComplete(n) {
   var sugg = document.getElementById('dfci-sugg-'+n);
   if (!inp) return;
 
-  // Correction en temps réel : majuscules + remplacement ";" par "."
   inp.addEventListener('keyup', function() {
     var pos   = inp.selectionStart;
     var fixed = inp.value.toUpperCase().replace(/;/g,'.').replace(/,/g,'.');
     if (fixed !== inp.value) {
       inp.value = fixed;
-      // Restaurer la position du curseur
       try { inp.setSelectionRange(pos, pos); } catch(e) {}
     }
   });
@@ -2684,109 +2689,250 @@ window.addEventListener('load', function() {
   }, 200);
 });
 
-// --- TRACCAR GPS TEMPS REEL -------------------------------------------------
-var TRACCAR_URL   = 'https://demo3.traccar.org';
-var TRACCAR_TOKEN = 'RzBFAiEAzcAWsjsHy53V77Fhz_sLF9NaLxnoYxuT21igqFtqLGsCID5yxLTD-6VP3EYC1jos4nu4M6ZzwBl_VlwSt1RzlI2LeyJpIjo3MTY5MDE5MzIzODEwNDUxNjU5LCJ1Ijo2NTAzLCJlIjoiMjAyNi0wNC0wOFQyMjowMDowMC4wMDArMDA6MDAifQ';
-var TRACCAR_DEVICES = {
-  75864832: { nom:'Smartphone_GG', type:'cmd', secteur:'Maures' }
-};
-var traccarActif = false;
 
-function fetchTraccar() {
-  fetch(TRACCAR_URL + '/api/positions', {
-    headers: {
-      'Authorization': 'Bearer ' + TRACCAR_TOKEN,
-      'Accept': 'application/json'
-    }
-  })
-  .then(function(r) {
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    return r.json();
-  })
-  .then(function(positions) {
-    if (!positions || positions.length === 0) return;
-    traccarActif = true;
-    // Mettre a jour le badge statut
-    var pill = document.querySelector('.status-pill');
-    if (pill) {
-      pill.style.background = '#1a3a1a';
-      pill.style.borderColor = '#2d7a2d';
-      pill.style.color = '#4caf50';
-      pill.innerHTML = 'GPS TEMPS REEL - demo3.traccar.org';
-    }
-    positions.forEach(function(pos) {
-      var devId  = pos.deviceId;
-      var lat    = pos.latitude;
-      var lon    = pos.longitude;
-      var speed  = Math.round((pos.speed || 0) * 1.852); // noeuds -> km/h
-      var heure  = new Date(pos.fixTime || pos.serverTime).toTimeString().slice(0,5);
-      var info   = TRACCAR_DEVICES[devId];
-      if (!info) {
-        // Device inconnu - l'ajouter dynamiquement
-        info = { nom:'Device-' + devId, type:'4x4', secteur:'Var' };
-        TRACCAR_DEVICES[devId] = info;
-      }
-      // Trouver le vehicule correspondant dans notre tableau
-      var found = false;
-      for (var i=0; i<vehicules.length; i++) {
-        if (vehicules[i].traccarId === devId) {
-          vehicules[i].lat     = lat;
-          vehicules[i].lng     = lon;
-          vehicules[i].vitesse = speed;
-          vehicules[i].heure   = heure;
-          vehicules[i].statut  = speed > 2 ? 'patrouille' : 'attente';
-          if (markers[vehicules[i].id]) {
-            markers[vehicules[i].id].marker.setLatLng([lat, lon]);
-            // Reconstruire le popup en respectant le toggle position actuel
-            var mkrObj = markers[vehicules[i].id];
-            mkrObj.marker.getPopup().setContent(buildVehiclePopup(vehicules[i]));
-          }
-          found = true;
-          break;
-        }
-      }
-      if (!found) {
-        // Creer un nouveau vehicule pour ce device Traccar
-        var newId = 100 + devId % 1000;
-        var newVeh = {
-          id: newId, nom: info.nom, type: info.type,
-          secteur: info.secteur, lat: lat, lng: lon,
-          statut: speed > 2 ? 'patrouille' : 'attente',
-          vitesse: speed, equipe: 'GPS Live', heure: heure,
-          traccarId: devId
-        };
-        vehicules.push(newVeh);
-        // Creer le marqueur
-        var bgColor   = newVeh.type==='4x4' ? '#1a3a1a' : newVeh.type==='eau' ? '#1a2a3a' : '#3a1a1a';
-        var typeIcon  = newVeh.type==='4x4' ? '&#x1F699;' : newVeh.type==='eau' ? '&#x1F692;' : '&#x2B50;';
-        var typeLabel = newVeh.type==='4x4' ? '4x4 / VLTT' : newVeh.type==='eau' ? 'Porteur eau / CCF' : 'Commandement';
-        var popup = '<div class="popup-inner">'
-          + '<div class="popup-header">'
-          + '<div class="popup-icon" style="background:' + bgColor + '">' + typeIcon + '</div>'
-          + '<div><div class="popup-title">' + newVeh.nom + ' <span style="color:#4caf50;font-size:10px;">LIVE</span></div>'
-          + '<div class="popup-sub">' + typeLabel + ' - ' + newVeh.secteur + '</div></div>'
-          + '</div>'
-          + '<div class="popup-row"><span class="lbl">Statut</span><span class="val green">GPS temps reel</span></div>'
-          + '<div class="popup-row"><span class="lbl">Vitesse</span><span class="val">' + Math.round(speed) + ' km/h</span></div>'
-          + '<div class="popup-row"><span class="lbl">MAJ</span><span class="val">' + heure + '</span></div>'
-          + '</div>';
-        var mkr = L.marker([lat, lon], { icon: makeIcon(newVeh.type, newVeh.statut) })
-          .bindPopup(popup, { className:'custom-popup', maxWidth:280 })
-          .on('click', function(){ selectVehicle(newId); });
-        markers[newId] = { marker: mkr, data: newVeh };
-        clusterGroup.addLayer(mkr);
-        // Centrer la carte sur la premiere position reelle
-        map.setView([lat, lon], 13, { animate: true });
-      }
+// --- COUCHES WMS CII TÉLÉCOM — Patrouilles & Vigies live --------------------
+var WMS_BASE = 'https://carto.tre.telealerte.net/mapserver/18712001/wms-admin/';
+
+var wmsLayers = {
+  patrouille:     null,
+  patrouille_txt: null,
+  vigie:          null
+};
+var wmsVisible = {
+  patrouille:     false,
+  patrouille_txt: false,
+  vigie:          false
+};
+
+var WMS_CONFIG = {
+  patrouille:     { layer: 'info_patrouille',     btn: 'btn-wms-patrouille',     label: 'Patrouilles actives' },
+  patrouille_txt: { layer: 'info_patrouille_txt', btn: 'btn-wms-patrouille-txt', label: 'Détail patrouilles' },
+  vigie:          { layer: 'info_vigie',           btn: 'btn-wms-vigie',          label: 'Vigies live (CII)' }
+};
+
+function toggleWMS(key) {
+  var cfg = WMS_CONFIG[key];
+  var btn = document.getElementById(cfg.btn);
+  if (wmsVisible[key]) {
+    // Masquer
+    if (wmsLayers[key]) { map.removeLayer(wmsLayers[key]); wmsLayers[key] = null; }
+    wmsVisible[key] = false;
+    if (btn) btn.classList.remove('active');
+  } else {
+    // Afficher
+    wmsLayers[key] = L.tileLayer.wms(WMS_BASE, {
+      layers:      cfg.layer,
+      format:      'image/png',
+      transparent: true,
+      version:     '1.3.0',
+      opacity:     0.9
     });
-    // Mettre a jour compteurs
-    updateStats();
-    renderList(document.getElementById('secteur-filter').value);
-  })
-  .catch(function(err) {
-    console.warn('Traccar fetch erreur:', err.message);
+    wmsLayers[key].addTo(map);
+    wmsVisible[key] = true;
+    if (btn) btn.classList.add('active');
+
+    // Programmer le refresh toutes les 300s
+    wmsLayers[key]._refreshTimer = setInterval(function() {
+      if (!wmsVisible[key]) return;
+      map.removeLayer(wmsLayers[key]);
+      wmsLayers[key] = L.tileLayer.wms(WMS_BASE, {
+        layers: cfg.layer, format: 'image/png',
+        transparent: true, version: '1.3.0', opacity: 0.9
+      }).addTo(map);
+    }, 300000);
+  }
+}
+
+// Nettoyer les timers WMS si la couche est retirée
+function clearWMSTimers() {
+  Object.keys(wmsLayers).forEach(function(key) {
+    if (wmsLayers[key] && wmsLayers[key]._refreshTimer) {
+      clearInterval(wmsLayers[key]._refreshTimer);
+    }
   });
 }
+
+// --- MYFLEET24 GPS TEMPS REEL -----------------------------------------------
+// API fournisseur local CCFF Roquebrune
+var MYFLEET_URL = 'http://212.227.9.177/MYFLEET24_WEB/FR/LocationAPIv0.awp'
+                + '?ID=38&METHOD=GETPARK&KEY=ROCHER&PASS=CCFF2&FORMAT=JS';
+var MYFLEET_INTERVAL = 60000; // 60s pour commencer — descendre à 30s quand validé
+var myfleetActif = false;
+var myfleetMarkers = {}; // { label: L.marker }
+
+// Labels connus R1-R11 — tous traités comme VLTT CCFF (pick-up orange)
+// Le type sera affiné si besoin ultérieurement
+function myfleetLabel(label) {
+  return 'CCFF-' + label; // ex: CCFF-R4
+}
+
+// ── Icône SVG pick-up CCFF orange ──────────────────────────────────────────
+function makeMyfleetIcon(label, fixgps, speed) {
+  // Couleur selon état
+  var col    = fixgps === 0 ? '#999999' : speed > 2 ? '#ff6600' : '#ffaa00';
+  var shadow = fixgps === 0 ? '#66666688' : speed > 2 ? '#ff660066' : '#ffaa0066';
+  var w = 44, h = 28;
+  // SVG pick-up vue de dessus stylisé CCFF
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 44 28">'
+    // Ombre portée
+    + '<ellipse cx="22" cy="25" rx="16" ry="3" fill="' + shadow + '"/>'
+    // Carrosserie principale
+    + '<rect x="4" y="8" width="36" height="14" rx="4" fill="' + col + '"/>'
+    // Cabine
+    + '<rect x="10" y="4" width="18" height="12" rx="3" fill="' + col + '" stroke="#fff" stroke-width="0.8" opacity="0.9"/>'
+    // Vitres cabine
+    + '<rect x="12" y="5.5" width="6" height="7" rx="1.5" fill="#b3d9ff" opacity="0.8"/>'
+    + '<rect x="20" y="5.5" width="6" height="7" rx="1.5" fill="#b3d9ff" opacity="0.8"/>'
+    // Bande réfléchissante jaune
+    + '<rect x="4" y="13" width="36" height="3" fill="#ffdd00" opacity="0.9"/>'
+    // Bande orange foncé
+    + '<rect x="4" y="16" width="36" height="2" fill="#cc4400" opacity="0.7"/>'
+    // Roues avant
+    + '<ellipse cx="10" cy="22" rx="4" ry="3" fill="#222"/>'
+    + '<ellipse cx="10" cy="22" rx="2" ry="1.5" fill="#555"/>'
+    // Roues arrière
+    + '<ellipse cx="34" cy="22" rx="4" ry="3" fill="#222"/>'
+    + '<ellipse cx="34" cy="22" rx="2" ry="1.5" fill="#555"/>'
+    // Calandre avant
+    + '<rect x="4" y="10" width="3" height="8" rx="1" fill="#cc4400"/>'
+    // Label véhicule
+    + '<text x="22" y="13" text-anchor="middle" font-family="Arial" font-weight="bold" font-size="6" fill="#fff" stroke="#000" stroke-width="0.3">' + label + '</text>'
+    // Point GPS (indicateur fix)
+    + (fixgps === 0
+        ? '<circle cx="38" cy="5" r="3" fill="#999" stroke="#fff" stroke-width="0.8"/>'
+        : '<circle cx="38" cy="5" r="3" fill="#00ff44" stroke="#fff" stroke-width="0.8"/>')
+    + '</svg>';
+
+  return L.divIcon({
+    html: svg,
+    className: '',
+    iconSize: [w, h],
+    iconAnchor: [w/2, h/2],
+    popupAnchor: [0, -h/2]
+  });
+}
+
+// ── Formater heure depuis TRACKDAY+TRACKTIME ────────────────────────────────
+function myfleetHeure(day, time) {
+  // TRACKDAY: 20260601  TRACKTIME: 172955
+  if (!time) return '--:--';
+  var t = String(time).padStart(6, '0');
+  return t.slice(0,2) + ':' + t.slice(2,4);
+}
+
+// ── Formater date depuis TRACKDAY ───────────────────────────────────────────
+function myfleetDate(day) {
+  if (!day) return '';
+  var d = String(day);
+  return d.slice(6,8) + '/' + d.slice(4,6) + '/' + d.slice(0,4);
+}
+
+// ── Fetch MyFleet24 ─────────────────────────────────────────────────────────
+function fetchMyfleet() {
+  fetch(MYFLEET_URL)
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      // L'API retourne soit un tableau soit un objet avec propriété DEVICE/devices
+      var devices = [];
+      if (Array.isArray(data))            devices = data;
+      else if (data.DEVICE)               devices = Array.isArray(data.DEVICE) ? data.DEVICE : [data.DEVICE];
+      else if (data.devices)              devices = data.devices;
+      else if (data.LocationAPI && data.LocationAPI.DEVICE) {
+        var d = data.LocationAPI.DEVICE;
+        devices = Array.isArray(d) ? d : [d];
+      }
+
+      if (devices.length === 0) {
+        console.warn('[MyFleet] Aucun device reçu — structure:', JSON.stringify(data).slice(0,200));
+        return;
+      }
+
+      myfleetActif = true;
+
+      // Mettre à jour le badge statut
+      var pill = document.querySelector('.status-pill');
+      if (pill) {
+        pill.style.background = '#2a1a00';
+        pill.style.borderColor = '#ff6600';
+        pill.style.color = '#ff9900';
+        pill.innerHTML = '&#x1F6F0; GPS LIVE &mdash; MyFleet24 &mdash; ' + devices.length + ' véhicule(s)';
+      }
+
+      var labelsVus = {};
+
+      devices.forEach(function(dev) {
+        var label   = String(dev.LABEL || dev.label || 'R?');
+        var lat     = parseFloat(dev.TRACKLAT  || dev.tracklat  || 0);
+        var lon     = parseFloat(dev.TRACKLNG  || dev.tracklng  || 0);
+        var speed   = parseFloat(dev.TRACKSPEED || dev.trackspeed || 0);
+        var fixgps  = parseInt(dev.FIXGPS  || dev.fixgps  || 0, 10);
+        var day     = dev.TRACKDAY   || dev.trackday   || '';
+        var time    = dev.TRACKTIME  || dev.tracktime  || '';
+        var imei    = dev.IMEI || dev.imei || '';
+
+        if (!lat || !lon || isNaN(lat) || isNaN(lon)) return; // position invalide
+
+        labelsVus[label] = true;
+        var heure = myfleetHeure(day, time);
+        var date  = myfleetDate(day);
+        var statut = speed > 2 ? 'patrouille' : 'attente';
+        var nom   = myfleetLabel(label);
+
+        // Popup
+        var fixTxt  = fixgps === 1 ? '<span style="color:#00ff44;">&#x2714; Fix GPS validé</span>'
+                                   : '<span style="color:#999;">&#x26A0; Position non confirmée</span>';
+        var popup =
+          '<div class="popup-inner">'
+          + '<div class="popup-header">'
+          + '<div class="popup-icon" style="background:#2a1a00;font-size:18px;">&#x1F699;</div>'
+          + '<div><div class="popup-title">' + nom + ' <span style="color:#ff6600;font-size:10px;">LIVE</span></div>'
+          + '<div class="popup-sub">VLTT CCFF &mdash; MyFleet24</div></div>'
+          + '</div>'
+          + '<div class="popup-row"><span class="lbl">Fix GPS</span><span class="val">' + fixTxt + '</span></div>'
+          + '<div class="popup-row"><span class="lbl">Vitesse</span><span class="val">' + Math.round(speed) + ' km/h</span></div>'
+          + '<div class="popup-row"><span class="lbl">Dernière pos.</span><span class="val">' + date + ' à ' + heure + '</span></div>'
+          + '<div class="popup-row"><span class="lbl">Lat / Lon</span><span class="val" style="font-size:11px;">' + lat.toFixed(5) + 'N &nbsp;' + lon.toFixed(5) + 'E</span></div>'
+          + '</div>';
+
+        if (myfleetMarkers[label]) {
+          // Mettre à jour marqueur existant
+          myfleetMarkers[label].setLatLng([lat, lon]);
+          myfleetMarkers[label].setIcon(makeMyfleetIcon(label, fixgps, speed));
+          myfleetMarkers[label].getPopup().setContent(popup);
+        } else {
+          // Créer nouveau marqueur
+          var mkr = L.marker([lat, lon], {
+            icon: makeMyfleetIcon(label, fixgps, speed),
+            zIndexOffset: 600
+          }).bindPopup(popup, { className: 'custom-popup', maxWidth: 280 });
+          map.addLayer(mkr);
+          myfleetMarkers[label] = mkr;
+        }
+      });
+
+      // Retirer les marqueurs de véhicules qui ne sont plus dans la réponse
+      Object.keys(myfleetMarkers).forEach(function(lbl) {
+        if (!labelsVus[lbl]) {
+          map.removeLayer(myfleetMarkers[lbl]);
+          delete myfleetMarkers[lbl];
+        }
+      });
+
+      console.log('[MyFleet] ' + devices.length + ' véhicule(s) mis à jour');
+    })
+    .catch(function(err) {
+      console.warn('[MyFleet] Erreur fetch:', err.message);
+    });
+}
+
+// Démarrer le polling MyFleet24
+fetchMyfleet();
+setInterval(fetchMyfleet, MYFLEET_INTERVAL);
+
+// Traccar remplacé par MyFleet24
 
 function updateStats() {
   var actif   = vehicules.filter(function(v){return v.statut==='patrouille';}).length;
@@ -2799,9 +2945,7 @@ function updateStats() {
   diffuserStatsVehicules();
 }
 
-// Demarrer le polling Traccar toutes les 30s
-fetchTraccar();
-setInterval(fetchTraccar, 30000);
+// Polling MyFleet24 déjà démarré ci-dessus
 
 // --- BROADCASTCHANNEL — sync avec gestion.html --------------------------------
 // (canal déjà ouvert en tête de script — fonctions de diffusion ci-dessous)
@@ -2882,7 +3026,7 @@ function afficherMarqueursPatrouilles(patrouilles) {
 setInterval(diffuserStatsVehicules, 30000);
 setInterval(function() {
   if (!simulationActive) return;  // Mode exploitation = pas de simulation
-  if (traccarActif) return;       // Traccar actif = pas de simulation
+  if (myfleetActif) return;       // MyFleet24 actif = pas de simulation
   vehicules.forEach(function(v) {
     if (v.traccarId) return;
     if (v.statut === 'patrouille' && v.vitesse > 0) {
