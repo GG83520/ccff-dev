@@ -2712,8 +2712,12 @@ window.addEventListener('load', function() {
   var btn = document.getElementById('pin-entree-btn');
 
   function check() {
-    var ok2km  = (typeof DFCI_2KM  !== 'undefined' && DFCI_2KM  !== null);
-    var ok20km = (typeof DFCI_20KM !== 'undefined' && DFCI_20KM !== null);
+    // Vérification stricte : objets présents ET features complètement chargées
+    // DFCI_2KM = 3827 carreaux — seuil 3000 pour garantir le chargement complet
+    var ok2km  = (typeof DFCI_2KM  !== 'undefined' && DFCI_2KM  !== null
+                  && DFCI_2KM.features  && DFCI_2KM.features.length  >= 3000);
+    var ok20km = (typeof DFCI_20KM !== 'undefined' && DFCI_20KM !== null
+                  && DFCI_20KM.features && DFCI_20KM.features.length >= 10);
 
     if (ok2km && ok20km) {
       // DFCI chargé — débloquer le bouton
@@ -2739,7 +2743,10 @@ window.addEventListener('load', function() {
         var dots = (bar._dots || 0) % 4;
         bar._dots = dots + 1;
         var d = '.'.repeat(dots);
-        bar.innerHTML = '<span class="dfci-spinner"></span>Chargement données DFCI' + d;
+        var nb2km = (typeof DFCI_2KM !== 'undefined' && DFCI_2KM && DFCI_2KM.features)
+                    ? DFCI_2KM.features.length : 0;
+        var progTxt = nb2km > 0 ? ' (' + nb2km + '/3827)' : '';
+        bar.innerHTML = '<span class="dfci-spinner"></span>Chargement données DFCI' + progTxt + d;
       }
       setTimeout(check, 200);
     }
