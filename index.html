@@ -1126,11 +1126,6 @@
       <button class="layer-btn" id="btn-dfci-ign" onclick="toggleDFCI_IGN()">🛰 DFCI IGN (WMTS)</button>
       <button class="layer-btn" id="btn-vigies" onclick="toggleVigies()">📡 Vigies CCFF</button>
       <button class="layer-btn" id="btn-vigies-visu" onclick="toggleVisuVigies()" style="display:none;">👁 Cercles de visu</button>
-      <div style="border-top:1px solid #2a3040;margin:4px 0;"></div>
-      <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:#4caf50;letter-spacing:1px;padding:2px 4px 4px;">PATROUILLES LIVE</div>
-      <button class="layer-btn wms-cii" id="btn-wms-patrouille" onclick="toggleWMS('patrouille')">🚶 Patrouilles actives</button>
-      <button class="layer-btn wms-cii" id="btn-wms-patrouille-txt" onclick="toggleWMS('patrouille_txt')">📋 Détail patrouilles</button>
-      <button class="layer-btn wms-cii" id="btn-wms-vigie" onclick="toggleWMS('vigie')">🔭 Vigies live (CII)</button>
     </div>
 
     <!-- Cadres Incidents — zone DEMO -->
@@ -1327,16 +1322,7 @@ function setLayer(key) {
   map.removeLayer(currentLayer);
   currentLayer = layers[key].addTo(map);
   currentLayerKey = key;
-  // Remettre les couches superposées au premier plan après changement de fond
   if (massifLayer) massifLayer.bringToFront();
-  // Remettre les couches WMS CII au premier plan
-  Object.keys(wmsLayers).forEach(function(k) {
-    if (wmsLayers[k]) {
-      wmsLayers[k].bringToFront();
-    }
-  });
-  // Remettre DFCI IGN au premier plan
-  if (typeof dfciIgnLayer !== 'undefined' && dfciIgnLayer) dfciIgnLayer.bringToFront();
   document.querySelectorAll('.layer-btn').forEach((btn,i) => {
     if (i < 4) btn.classList.toggle('active', btn.getAttribute('onclick').includes(`'${key}'`));
   });
@@ -2011,7 +1997,21 @@ var ZONE_LABELS = {
 };
 
 function dfciParseCode(raw) {
-  var s = raw.trim().toUpperCase().replace(/\s/g,'');
+  // ── Nettoyage robuste de la saisie ──────────────────────────────────────
+  var s = raw.trim().toUpperCase();
+  // Remplacer les caractères de confusion fréquents sur clavier FR :
+  s = s.replace(/;/g, '.');   // ";" → "." (touches adjacentes sur clavier FR)
+  s = s.replace(/,/g, '.');   // "," → "." (autre confusion courante)
+  s = s.replace(/:/g, '.');   // ":" → "." (Shift+; sur certains claviers)
+  s = s.replace(/\s+/g, ''); // supprimer tous les espaces
+  // Accepter le tiret ou slash comme séparateur de zone : LD44E3-1 ou LD44E3/1
+  s = s.replace(/[-/]([1-5])$/, '.$1');
+  // Accepter la zone collée sans point si dernier caractère est 1-5 après code 2km
+  // ex: LD44E31 → LD44E3.1
+  var mFix = s.match(/^([A-Z]{2}\d{2}[A-J]\d)([1-5])$/);
+  if (mFix) s = mFix[1] + '.' + mFix[2];
+
+  // ── Parsing standard ────────────────────────────────────────────────────
   var m20 = s.match(/^([A-Z]{2}\d{2})$/);
   var m2  = s.match(/^([A-Z]{2}\d{2}[A-J]\d)$/);
   var m1  = s.match(/^([A-Z]{2}\d{2}[A-J]\d)\.([1-5])$/);
@@ -2142,8 +2142,21 @@ function initAutoComplete(n) {
   var sugg = document.getElementById('dfci-sugg-'+n);
   if (!inp) return;
 
+  // Correction en temps réel : majuscules + remplacement ";" par "."
+  inp.addEventListener('keyup', function() {
+    var pos   = inp.selectionStart;
+    var fixed = inp.value.toUpperCase().replace(/;/g,'.').replace(/,/g,'.');
+    if (fixed !== inp.value) {
+      inp.value = fixed;
+      // Restaurer la position du curseur
+      try { inp.setSelectionRange(pos, pos); } catch(e) {}
+    }
+  });
+
   inp.addEventListener('input', function() {
-    var val = inp.value.trim().toUpperCase().replace(/\s/g,'');
+    var val = inp.value.trim().toUpperCase()
+      .replace(/;/g,'.').replace(/,/g,'.').replace(/:/g,'.')
+      .replace(/\s+/g,'');
     sugg.innerHTML = ''; sugg.style.display='none';
     if (val.length < 2) return;
     var matches = [];
@@ -2670,69 +2683,6 @@ window.addEventListener('load', function() {
     if (inp) inp.focus();
   }, 200);
 });
-
-
-// --- COUCHES WMS CII TÉLÉCOM — Patrouilles & Vigies live --------------------
-var WMS_BASE = 'https://carto.tre.telealerte.net/mapserver/18712001/wms-admin/';
-
-var wmsLayers = {
-  patrouille:     null,
-  patrouille_txt: null,
-  vigie:          null
-};
-var wmsVisible = {
-  patrouille:     false,
-  patrouille_txt: false,
-  vigie:          false
-};
-
-var WMS_CONFIG = {
-  patrouille:     { layer: 'info_patrouille',     btn: 'btn-wms-patrouille',     label: 'Patrouilles actives' },
-  patrouille_txt: { layer: 'info_patrouille_txt', btn: 'btn-wms-patrouille-txt', label: 'Détail patrouilles' },
-  vigie:          { layer: 'info_vigie',           btn: 'btn-wms-vigie',          label: 'Vigies live (CII)' }
-};
-
-function toggleWMS(key) {
-  var cfg = WMS_CONFIG[key];
-  var btn = document.getElementById(cfg.btn);
-  if (wmsVisible[key]) {
-    // Masquer
-    if (wmsLayers[key]) { map.removeLayer(wmsLayers[key]); wmsLayers[key] = null; }
-    wmsVisible[key] = false;
-    if (btn) btn.classList.remove('active');
-  } else {
-    // Afficher
-    wmsLayers[key] = L.tileLayer.wms(WMS_BASE, {
-      layers:      cfg.layer,
-      format:      'image/png',
-      transparent: true,
-      version:     '1.3.0',
-      opacity:     0.9
-    });
-    wmsLayers[key].addTo(map);
-    wmsVisible[key] = true;
-    if (btn) btn.classList.add('active');
-
-    // Programmer le refresh toutes les 300s
-    wmsLayers[key]._refreshTimer = setInterval(function() {
-      if (!wmsVisible[key]) return;
-      map.removeLayer(wmsLayers[key]);
-      wmsLayers[key] = L.tileLayer.wms(WMS_BASE, {
-        layers: cfg.layer, format: 'image/png',
-        transparent: true, version: '1.3.0', opacity: 0.9
-      }).addTo(map);
-    }, 300000);
-  }
-}
-
-// Nettoyer les timers WMS si la couche est retirée
-function clearWMSTimers() {
-  Object.keys(wmsLayers).forEach(function(key) {
-    if (wmsLayers[key] && wmsLayers[key]._refreshTimer) {
-      clearInterval(wmsLayers[key]._refreshTimer);
-    }
-  });
-}
 
 // --- TRACCAR GPS TEMPS REEL -------------------------------------------------
 var TRACCAR_URL   = 'https://demo3.traccar.org';
