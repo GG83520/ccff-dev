@@ -2098,7 +2098,7 @@ function dfciSearch(n) {
     dfciState[n].highlight = L.geoJSON(f20, {
       style:{color:col.fill, weight:3, fillColor:col.fill, fillOpacity:0.15}
     }).addTo(map);
-    if (dfciVisible) toggleDFCI();
+    // Ne pas interférer avec les couches d'affichage DFCI
     return;
   }
 
@@ -2131,7 +2131,7 @@ function dfciSearch(n) {
   }
 
   map.setView(center, zoom, {animate:true});
-  if (dfciVisible) toggleDFCI();
+  // Ne pas interférer avec les couches d'affichage DFCI
 
   dfciState[n].marker = L.marker(center, {
     icon: L.divIcon({
