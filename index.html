@@ -1669,15 +1669,15 @@ function toggleDFCI_IGN() {
     // Créer une nouvelle instance propre à chaque activation
     dfciIgnLayer = L.tileLayer(
       'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0' +
-      '&LAYER=GEOGRAPHICALGRIDSYSTEM.DFCI' +
+      '&LAYER=GEOGRAPHICALGRIDSYSTEMS.DFCI' +
       '&STYLE=normal&TILEMATRIXSET=PM' +
       '&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png',
       {
-        attribution: '© IGN Géoportail',
+        attribution: '© IGN Géoportail — DFCI',
+        minZoom: 6,
         maxZoom: 18,
-        opacity: 0.8,
-        pane: 'overlayPane',
-        keepBuffer: 2   // réduire le buffer de tuiles pour libérer la mémoire plus vite
+        opacity: 0.85,
+        pane: 'overlayPane'
       }
     );
     dfciIgnLayer.addTo(map);
