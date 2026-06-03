@@ -635,27 +635,6 @@
   .dfci-result-err { color:#ef5350 !important; }
   .dfci-search-marker { background:transparent !important; border:none !important; }
 
-  /* Avertissement couche DFCI IGN active */
-  .dfci-ign-warning {
-    position: absolute;
-    top: 36px;
-    left: 0;
-    background: #2a1500;
-    border: 1px solid #e85d26;
-    border-radius: 5px;
-    padding: 5px 10px;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 11px;
-    color: #ffaa44;
-    white-space: nowrap;
-    z-index: 3000;
-    pointer-events: none;
-    animation: fadeInWarn 0.2s ease;
-  }
-  @keyframes fadeInWarn {
-    from { opacity: 0; transform: translateY(-4px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
 
   /* ── F1 : Contour commune ── */
   .commune-label {
@@ -1175,8 +1154,8 @@
       <div style="border-top:1px solid #2a3040;margin:4px 0;"></div>
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:#6a7a8a;letter-spacing:1px;padding:2px 4px 4px;">COUCHES</div>
       <button class="layer-btn disabled" id="btn-massifs" title="Couche temporairement désactivée">🌲 Massifs forestiers</button>
-      <button class="layer-btn disabled" id="btn-dfci" title="Couche en cours de refonte">📐 Carroyage DFCI</button>
-      <button class="layer-btn" id="btn-dfci-ign" onclick="toggleDFCI_IGN()">🛰 DFCI IGN (WMTS)</button>
+      <button class="layer-btn" id="btn-dfci" onclick="toggleDFCI()">📐 Carroyage DFCI</button>
+      <button class="layer-btn disabled" id="btn-dfci-ign" title="Couche DFCI IGN — projection Lambert 93 incompatible avec Leaflet">🛰 DFCI IGN (WMTS)</button>
       <button class="layer-btn" id="btn-vigies" onclick="toggleVigies()">📡 Vigies CCFF</button>
       <button class="layer-btn" id="btn-vigies-visu" onclick="toggleVisuVigies()" style="display:none;">👁 Cercles de visu</button>
       <div style="border-top:1px solid #2a3040;margin:4px 0;"></div>
@@ -1656,28 +1635,22 @@ function toggleDFCI_IGN() {
     }
     dfciIgnVisible = false;
     btn.classList.remove('active');
-    // Nettoyer les avertissements sur les champs S1-S4
-    [1,2,3,4].forEach(function(n) {
-      var w = document.getElementById('dfci-ign-warn-'+n);
-      if (w) w.remove();
-      var inp = document.getElementById('dfci-input-'+n);
-      if (inp) inp.style.borderColor = '';
-    });
+
     // Forcer Leaflet à recalculer l'état des panes après suppression couche WMTS
     setTimeout(function() { map.invalidateSize(); }, 50);
   } else {
     // Créer une nouvelle instance propre à chaque activation
-    dfciIgnLayer = L.tileLayer(
-      'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0' +
-      '&LAYER=GEOGRAPHICALGRIDSYSTEMS.DFCI' +
-      '&STYLE=normal&TILEMATRIXSET=PM' +
-      '&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png',
+    // Couche DFCI IGN via WMS (plus fiable que WMTS pour cette couche en Lambert 93)
+    dfciIgnLayer = L.tileLayer.wms(
+      'https://data.geopf.fr/wms-r/wms',
       {
+        layers:      'GEOGRAPHICALGRIDSYSTEM.DFCI',
+        format:      'image/png',
+        transparent: true,
+        version:     '1.3.0',
         attribution: '© IGN Géoportail — DFCI',
-        minZoom: 6,
-        maxZoom: 18,
-        opacity: 0.85,
-        pane: 'overlayPane'
+        opacity:     0.85,
+        pane:        'overlayPane'
       }
     );
     dfciIgnLayer.addTo(map);
@@ -2120,28 +2093,6 @@ function dfciClear(n) {
 }
 
 function dfciSearch(n) {
-  // Bloquer la recherche si la couche DFCI IGN WMTS est active
-  if (dfciIgnVisible) {
-    var inp = document.getElementById('dfci-input-'+n);
-    // Supprimer un éventuel avertissement précédent
-    var oldWarn = document.getElementById('dfci-ign-warn-'+n);
-    if (oldWarn) oldWarn.remove();
-    // Afficher le message
-    var warn = document.createElement('div');
-    warn.id = 'dfci-ign-warn-'+n;
-    warn.className = 'dfci-ign-warning';
-    warn.innerHTML = '&#9888; Désactivez la couche <b>DFCI IGN</b> avant de rechercher';
-    inp.closest('.dfci-search-box').appendChild(warn);
-    // Flash orange sur l'input
-    inp.style.borderColor = '#e85d26';
-    // Disparaît après 3 secondes
-    setTimeout(function() {
-      warn.remove();
-      inp.style.borderColor = '';
-    }, 3000);
-    return;
-  }
-
   var raw    = document.getElementById('dfci-input-'+n).value;
   var parsed = dfciParseCode(raw);
   var col    = COULEURS[n];
