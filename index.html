@@ -635,6 +635,36 @@
   .dfci-result-err { color:#ef5350 !important; }
   .dfci-search-marker { background:transparent !important; border:none !important; }
 
+  /* ── Boutons dépôt marqueurs tactiques ── */
+  .tactique-btns {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    padding: 8px 4px 4px;
+    border-top: 1px solid #2a3040;
+    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .tactique-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    background: #1a1f2e;
+    border: 1px solid #2a3040;
+    border-radius: 6px;
+    padding: 5px 8px;
+    cursor: pointer;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    color: #8a9bb0;
+    transition: all 0.15s;
+    min-width: 44px;
+  }
+  .tactique-btn:hover { background: #1e2733; color: #fff; border-color: #4a5570; }
+  .tactique-btn .tb-icon { font-size: 16px; line-height: 1; }
+  .tactique-btn .tb-label { letter-spacing: 0.3px; }
+
 
   /* ── F1 : Contour commune ── */
   .commune-label {
@@ -1453,13 +1483,21 @@ function buildDFCILayer() {
             }
 
             var zoneCode = code + zone;
+            var clickLat2 = e.latlng.lat;
+            var clickLon2 = e.latlng.lng;
             var html =
               '<div style="text-align:center;padding:4px 0;">' +
               '<div style="font-size:22px;font-weight:700;color:' + color + ';letter-spacing:1px;margin-bottom:4px;">' + zoneCode + '</div>' +
               '<div style="font-size:12px;color:#8a9bb0;margin-bottom:8px;">' + label + ' - 1km x 1km</div>' +
               '<div style="font-size:10px;color:#4a5a6a;border-top:1px solid #2a3040;padding-top:6px;">' + code + ' (carreau 2km)</div>' +
+              '</div>' +
+              '<div class="tactique-btns" data-lat="' + clickLat2 + '" data-lon="' + clickLon2 + '" data-dfci="' + zoneCode + '">' +
+              '<button class="tactique-btn" data-type="transit" title="Point de Transit"><span class="tb-icon">\u{1F4CD}</span><span class="tb-label">Transit</span></button>' +
+              '<button class="tactique-btn" data-type="engagement" title="Point d&#39;engagement"><span class="tb-icon">\u{1F3AF}</span><span class="tb-label">Engagement</span></button>' +
+              '<button class="tactique-btn" data-type="codis" title="PC CODIS"><span class="tb-icon">\u{1F3C1}</span><span class="tb-label">PC CODIS</span></button>' +
+              '<button class="tactique-btn" data-type="feu" title="D\u00e9part de Feu"><span class="tb-icon">\u{1F525}</span><span class="tb-label">D\u00e9part Feu</span></button>' +
               '</div>';
-            L.popup({ className:'custom-popup', maxWidth:200 })
+            L.popup({ className:'custom-popup', maxWidth:240 })
               .setLatLng(e.latlng)
               .setContent(html)
               .openOn(map);
@@ -2369,7 +2407,141 @@ function initCommuneSearch() {
   });
 }
 
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MODULE MARQUEURS TACTIQUES — B1 Transit · B2 Engagement · B3 CODIS · B4 Feu
+// ══════════════════════════════════════════════════════════════════════════════
+var marqueursSlot = {
+  1: { transit:[], engagement:[], codis:[], feu:[] },
+  2: { transit:[], engagement:[], codis:[], feu:[] },
+  3: { transit:[], engagement:[], codis:[], feu:[] },
+  4: { transit:[], engagement:[], codis:[], feu:[] }
+};
+
+var MAX_MARQUEURS = 3; // max par type par slot
+
+// Définition des types
+var TACTIQUE_DEF = {
+  transit:    { label:'Point de Transit',   couleur:'#9b59b6', couleurBg:'#2a1040',
+                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36"><path d="M12 0C7.6 0 4 3.6 4 8c0 6 8 18 8 18s8-12 8-18c0-4.4-3.6-8-8-8z" fill="#9b59b6" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="8" r="4" fill="#fff"/></svg>' },
+  engagement: { label:"Point d'engagement", couleur:'#e74c3c', couleurBg:'#3a0a0a',
+                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36"><polygon points="12,2 22,22 12,18 2,22" fill="#e74c3c" stroke="#fff" stroke-width="1.5"/><line x1="12" y1="18" x2="12" y2="34" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round"/></svg>' },
+  codis:      { label:'PC CODIS',           couleur:'#8e44ad', couleurBg:'#2a0a40',
+                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 36" width="28" height="36"><rect x="2" y="2" width="24" height="16" rx="2" fill="#8e44ad" stroke="#fff" stroke-width="1.5"/><path d="M4 4h4v4H4zm5 0h4v4H9zm5 0h4v4h-4zM4 9h4v4H4zm5 0h4v4H9zm5 0h4v4h-4z" fill="#fff" opacity="0.6"/><line x1="14" y1="18" x2="14" y2="34" stroke="#8e44ad" stroke-width="2.5" stroke-linecap="round"/></svg>' },
+  feu:        { label:'Départ de Feu',      couleur:'#e85d26', couleurBg:'#3a1500',
+                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28"><polygon points="14,2 17,10 24,10 18,15 20,23 14,18 8,23 10,15 4,10 11,10" fill="#e85d26" stroke="#fff" stroke-width="1.5"/></svg>' }
+};
+
+// Slot actif (dernier GO appuyé)
+var slotActif = null;
+
+// Mettre à jour le slot actif quand une recherche GO est lancée
+var _dfciSearchOrig = dfciSearch;
+dfciSearch = function(n) {
+  slotActif = n;
+  _dfciSearchOrig(n);
+};
+
+function deposerMarqueur(type, lat, lon, dfciCode) {
+  map.closePopup();
+
+  var def  = TACTIQUE_DEF[type];
+  var slot = slotActif || 0;
+  var col  = slot && COULEURS[slot] ? COULEURS[slot].fill : '#ffffff';
+
+  // Vérifier le quota
+  if (slot && marqueursSlot[slot][type].length >= MAX_MARQUEURS) {
+    // Supprimer le plus ancien
+    var oldest = marqueursSlot[slot][type].shift();
+    if (oldest) map.removeLayer(oldest);
+  }
+
+  // Construire l'icône SVG
+  var slotBadge = slot
+    ? '<div style="position:absolute;top:-6px;right:-6px;width:14px;height:14px;border-radius:50%;background:' + col + ';border:1.5px solid #fff;font-size:8px;font-weight:700;display:flex;align-items:center;justify-content:center;color:#fff;font-family:Arial;">' + slot + '</div>'
+    : '';
+  var iconHtml = '<div style="position:relative;display:inline-block;">' + def.svg + slotBadge + '</div>';
+
+  var icon = L.divIcon({
+    html: iconHtml,
+    className: '',
+    iconSize: type === 'feu' ? [28,28] : [28,36],
+    iconAnchor: type === 'feu' ? [14,14] : [14,34],
+    popupAnchor: [0, type === 'feu' ? -16 : -36]
+  });
+
+  // Popup du marqueur
+  var heure = new Date().toTimeString().slice(0,5);
+  var slotTxt = slot ? ' <span style="color:' + col + ';font-weight:700;">S' + slot + '</span>' : '';
+  var popupHtml =
+    '<div class="popup-inner" style="min-width:180px;">' +
+    '<div class="popup-header">' +
+    '<div class="popup-icon" style="background:' + def.couleurBg + ';font-size:16px;">' + (type==='transit'?'📍':type==='engagement'?'🎯':type==='codis'?'🏁':'🔥') + '</div>' +
+    '<div><div class="popup-title" style="color:' + def.couleur + ';">' + def.label + slotTxt + '</div>' +
+    '<div class="popup-sub">' + dfciCode + ' &mdash; ' + heure + '</div></div>' +
+    '</div>' +
+    '<div class="popup-row"><span class="lbl">Lat / Lon</span><span class="val" style="font-size:11px;">' + lat.toFixed(5) + 'N  ' + lon.toFixed(5) + 'E</span></div>' +
+    '<div style="text-align:center;margin-top:8px;padding-top:6px;border-top:1px solid #2a3040;">' +
+    '<button onclick="supprimerMarqueur(this)" ' +
+    'data-type="' + type + '" data-slot="' + slot + '" ' +
+    'style="background:#3a0a0a;border:1px solid #ef5350;border-radius:4px;color:#ef5350;' +
+    'font-family:Arial,sans-serif;font-size:12px;padding:4px 12px;cursor:pointer;">' +
+    '&#10005; Supprimer</button></div>' +
+    '</div>';
+
+  var mkr = L.marker([lat, lon], { icon: icon, zIndexOffset: 800 })
+    .bindPopup(popupHtml, { className: 'custom-popup', maxWidth: 240 });
+  map.addLayer(mkr);
+
+  // Stocker la référence
+  if (slot) {
+    marqueursSlot[slot][type].push(mkr);
+    // Attacher les infos au marqueur pour pouvoir le retrouver
+    mkr._tactiqueType = type;
+    mkr._tactiqueSlot = slot;
+  }
+}
+
+function supprimerMarqueur(btn) {
+  // Fermer le popup et supprimer le marqueur
+  var type = btn.getAttribute('data-type');
+  var slot = parseInt(btn.getAttribute('data-slot')) || 0;
+  map.closePopup();
+  // Trouver et supprimer le marqueur qui contient ce bouton
+  // On parcourt les marqueurs du slot/type
+  if (slot && marqueursSlot[slot] && marqueursSlot[slot][type]) {
+    marqueursSlot[slot][type] = marqueursSlot[slot][type].filter(function(mkr) {
+      if (mkr._popup && mkr._popup._contentNode && mkr._popup._contentNode.contains(btn)) {
+        map.removeLayer(mkr);
+        return false;
+      }
+      return true;
+    });
+  }
+}
+
+function supprimerTousMarqueurs(slot) {
+  if (!slot) return;
+  Object.keys(marqueursSlot[slot]).forEach(function(type) {
+    marqueursSlot[slot][type].forEach(function(mkr) { map.removeLayer(mkr); });
+    marqueursSlot[slot][type] = [];
+  });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+  // Handler délégué pour les boutons tactiques dans les popups DFCI
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.tactique-btn[data-type]');
+    if (!btn) return;
+    var container = btn.closest('.tactique-btns');
+    if (!container) return;
+    var lat  = parseFloat(container.getAttribute('data-lat'));
+    var lon  = parseFloat(container.getAttribute('data-lon'));
+    var dfci = container.getAttribute('data-dfci');
+    var type = btn.getAttribute('data-type');
+    deposerMarqueur(type, lat, lon, dfci);
+  });
+
   initAutoComplete(1);
   initAutoComplete(2);
   initAutoComplete(3);
