@@ -1328,11 +1328,13 @@ const massifs = [
 ];
 
 // --- INIT CARTE ---------------------------------------------------------------
+var myRenderer = L.canvas({ padding: 0.5 });
 const map = L.map('map', {
   center: [43.38, 6.22],
   zoom: 10,
   zoomControl: true,
-  attributionControl: false
+  attributionControl: false,
+  preferCanvas: true
 });
 
 // Fonds de carte - tuiles 100% publiques (fonctionnent en file:// sans clé API)
@@ -1422,6 +1424,7 @@ function buildDFCILayer20() {
   if (typeof DFCI_20KM === 'undefined') return lg;
   var labels20 = L.layerGroup();
   L.geoJSON(DFCI_20KM, {
+    renderer: myRenderer,
     style: function() {
       return { color:'#e8a020', weight:2.5, fillOpacity:0.05, fillColor:'#e8a020', opacity:0.9 };
     },
@@ -1451,9 +1454,10 @@ function buildDFCILayer2km() {
   if (typeof DFCI_2KM === 'undefined' || DFCI_2KM === null) return lg;
   var labelsLg = L.layerGroup();
   L.geoJSON(DFCI_2KM, {
+    renderer: myRenderer,
     smoothFactor: 0,
     style: function() {
-      return { color:'#e8a020', weight:0.3, fillOpacity:0.03, fillColor:'#e8a020', opacity:0.6 };
+      return { color:'#e8a020', weight:0.5, fillOpacity:0, opacity:0.8 };
     },
     onEachFeature: function(feature, layer) {
       var code = feature.properties.c;
