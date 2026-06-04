@@ -1485,22 +1485,55 @@ function buildDFCILayer() {
             var zoneCode = code + zone;
             var clickLat2 = e.latlng.lat;
             var clickLon2 = e.latlng.lng;
-            var html =
-              '<div style="text-align:center;padding:4px 0;">' +
-              '<div style="font-size:22px;font-weight:700;color:' + color + ';letter-spacing:1px;margin-bottom:4px;">' + zoneCode + '</div>' +
-              '<div style="font-size:12px;color:#8a9bb0;margin-bottom:8px;">' + label + ' - 1km x 1km</div>' +
-              '<div style="font-size:10px;color:#4a5a6a;border-top:1px solid #2a3040;padding-top:6px;">' + code + ' (carreau 2km)</div>' +
-              '</div>' +
-              '<div class="tactique-btns" data-lat="' + clickLat2 + '" data-lon="' + clickLon2 + '" data-dfci="' + zoneCode + '">' +
-              '<button class="tactique-btn" data-type="transit" title="Point de Transit"><span class="tb-icon">\u{1F4CD}</span><span class="tb-label">Transit</span></button>' +
-              '<button class="tactique-btn" data-type="engagement" title="Point d&#39;engagement"><span class="tb-icon">\u{1F3AF}</span><span class="tb-label">Engagement</span></button>' +
-              '<button class="tactique-btn" data-type="codis" title="PC CODIS"><span class="tb-icon">\u{1F3C1}</span><span class="tb-label">PC CODIS</span></button>' +
-              '<button class="tactique-btn" data-type="feu" title="D\u00e9part de Feu"><span class="tb-icon">\u{1F525}</span><span class="tb-label">D\u00e9part Feu</span></button>' +
-              '</div>';
-            L.popup({ className:'custom-popup', maxWidth:240 })
+
+            // Identifiant unique pour ce popup (pour màj async de la commune)
+            var popupId = 'pp-' + Date.now();
+
+            var buildHtml = function(nomCommune) {
+              var communeLigne = nomCommune
+                ? '<div style="font-size:13px;font-weight:700;color:#e8a020;margin-top:4px;margin-bottom:4px;">' + nomCommune + '</div>'
+                : '<div style="font-size:11px;color:#4a5a6a;margin-top:4px;margin-bottom:4px;" id="' + popupId + '-comm">Commune...</div>';
+              return '<div style="text-align:center;padding:4px 0;">'
+                + '<div style="font-size:22px;font-weight:700;color:' + color + ';letter-spacing:1px;margin-bottom:2px;">' + zoneCode + '</div>'
+                + '<div style="font-size:12px;color:#8a9bb0;margin-bottom:4px;">' + label + ' - 1km x 1km</div>'
+                + communeLigne
+                + '<div style="font-size:10px;color:#4a5a6a;border-top:1px solid #2a3040;padding-top:4px;">' + code + ' (carreau 2km)</div>'
+                + '</div>'
+                + '<div class="tactique-btns" id="' + popupId + '-btns" data-lat="' + clickLat2 + '" data-lon="' + clickLon2 + '" data-dfci="' + zoneCode + '" data-commune="">'
+                + '<button class="tactique-btn" data-type="transit" title="Point de Transit"><span class="tb-icon">\u{1F4CD}</span><span class="tb-label">Transit</span></button>'
+                + '<button class="tactique-btn" data-type="engagement" title="Point d&#39;engagement"><span class="tb-icon">\u{1F3AF}</span><span class="tb-label">Engagement</span></button>'
+                + '<button class="tactique-btn" data-type="codis" title="PC CODIS"><span class="tb-icon">\u{1F3C1}</span><span class="tb-label">PC CODIS</span></button>'
+                + '<button class="tactique-btn" data-type="feu" title="D\u00e9part de Feu"><span class="tb-icon">\u{1F525}</span><span class="tb-label">D\u00e9part Feu</span></button>'
+                + '</div>';
+            };
+
+            // Ouvrir le popup immédiatement (commune = "Commune...")
+            var popup = L.popup({ className:'custom-popup', maxWidth:260 })
               .setLatLng(e.latlng)
-              .setContent(html)
+              .setContent(buildHtml(''))
               .openOn(map);
+
+            // Fetch commune exacte via API (asynchrone)
+            fetch('https://geo.api.gouv.fr/communes?lat=' + clickLat2 + '&lon=' + clickLon2
+                + '&fields=nom&format=json&limit=1')
+              .then(function(r){ return r.json(); })
+              .then(function(data) {
+                if (!data || data.length === 0) return;
+                var nomCommune = data[0].nom;
+                // Mettre à jour le popup si encore ouvert
+                var commEl = document.getElementById(popupId + '-comm');
+                if (commEl) {
+                  commEl.style.fontSize = '13px';
+                  commEl.style.fontWeight = '700';
+                  commEl.style.color = '#e8a020';
+                  commEl.textContent = nomCommune;
+                  commEl.id = ''; // éviter double màj
+                }
+                // Stocker dans data-commune pour deposerMarqueur
+                var btnsEl = document.getElementById(popupId + '-btns');
+                if (btnsEl) btnsEl.setAttribute('data-commune', nomCommune);
+              })
+              .catch(function(){});
           });
         }
       }).addTo(lg);
@@ -2442,7 +2475,7 @@ dfciSearch = function(n) {
   _dfciSearchOrig(n);
 };
 
-function deposerMarqueur(type, lat, lon, dfciCode) {
+function deposerMarqueur(type, lat, lon, dfciCode, container) {
   map.closePopup();
 
   var def  = TACTIQUE_DEF[type];
@@ -2473,17 +2506,9 @@ function deposerMarqueur(type, lat, lon, dfciCode) {
   // Popup du marqueur
   var heure = new Date().toTimeString().slice(0,5);
   var slotTxt = slot ? ' <span style="color:' + col + ';font-weight:700;">S' + slot + '</span>' : '';
-  // Récupérer la commune depuis COMMUNES_VAR (coords locales)
-  var communeNom = '';
-  if (typeof COMMUNES_VAR !== 'undefined') {
-    var best = null, bestDist = 999;
-    COMMUNES_VAR.forEach(function(com) {
-      if (!com.lat || !com.lon) return;
-      var d = Math.abs(com.lat - lat) + Math.abs(com.lon - lon);
-      if (d < bestDist) { bestDist = d; best = com; }
-    });
-    if (best && bestDist < 0.15) communeNom = best.nom;
-  }
+  // Commune : lue depuis data-commune (stockée par le fetch async du popup DFCI)
+  // Plus fiable que la recherche par distance dans COMMUNES_VAR
+  var communeNom = container ? (container.getAttribute('data-commune') || '') : '';
 
   var communeLigne = communeNom
     ? '<div class="popup-row"><span class="lbl">Commune</span><span class="val" style="color:#e8a020;">' + communeNom + '</span></div>'
@@ -2588,7 +2613,7 @@ document.addEventListener('DOMContentLoaded', function() {
       var lon  = parseFloat(container.getAttribute('data-lon'));
       var dfci = container.getAttribute('data-dfci');
       var type = btn.getAttribute('data-type');
-      deposerMarqueur(type, lat, lon, dfci);
+      deposerMarqueur(type, lat, lon, dfci, container);
       return;
     }
     // Effacer groupe
