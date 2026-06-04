@@ -1422,16 +1422,18 @@ function buildDFCILayer() {
   if (zoom >= 12) {
     // Mailles 2km avec popup subdivision 1km au clic
     if (typeof DFCI_2KM !== 'undefined' && DFCI_2KM !== null) {
+      // Groupe séparé pour les labels — évite les cascades Leaflet dans onEachFeature
+      var labelsLg = L.layerGroup();
       L.geoJSON(DFCI_2KM, {
         smoothFactor: 0,
         style: function() {
-          return { color:'#e8a020', weight:0.8, fillOpacity:0.01, fillColor:'#0d1117', opacity:0.85 };
+          return { color:'#e8a020', weight:0.8, fillOpacity:0, opacity:0.85 };
         },
         onEachFeature: function(feature, layer) {
           var code = feature.properties.c;
           var cx   = feature.properties.cx;
           var cy   = feature.properties.cy;
-          // Label centré
+          // Label centré — ajouté dans labelsLg, pas dans lg directement
           if (cx && cy) {
             L.marker([cy, cx], {
               icon: L.divIcon({
@@ -1440,7 +1442,7 @@ function buildDFCILayer() {
                 iconSize: [70,14], iconAnchor: [35,7]
               }),
               interactive: false, keyboard: false
-            }).addTo(lg);
+            }).addTo(labelsLg);
           }
           // Clic : detecter la zone 1km selon position exacte du clic
           layer.on('click', function(e) {
@@ -1539,6 +1541,7 @@ function buildDFCILayer() {
           });
         }
       }).addTo(lg);
+      lg.addLayer(labelsLg);
     }
 
   } else {
