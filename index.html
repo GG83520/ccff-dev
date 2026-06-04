@@ -1424,7 +1424,7 @@ function buildDFCILayer() {
     if (typeof DFCI_2KM !== 'undefined' && DFCI_2KM !== null) {
       L.geoJSON(DFCI_2KM, {
         style: function() {
-          return { color:'#e8a020', weight:1.2, fillOpacity:0, opacity:0.75 };
+          return { color:'#e8a020', weight:0.5, fillOpacity:0, opacity:0.9 };
         },
         onEachFeature: function(feature, layer) {
           var code = feature.properties.c;
