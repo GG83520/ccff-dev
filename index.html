@@ -2534,7 +2534,8 @@ function deposerMarqueur(type, lat, lon, dfciCode, container) {
     'style="background:#3a0a0a;border:1px solid #ef5350;border-radius:4px;color:#ef5350;' +
     'font-family:Arial,sans-serif;font-size:12px;padding:4px 10px;cursor:pointer;">' +
     '&#10005; Supprimer</button>' +
-    '<button class="btn-suppr-groupe" data-type="' + type + '" data-slot="' + slot + '" ' +
+    '<button onclick="supprimerGroupe(this.dataset.type,+this.dataset.slot)" ' +
+    'data-type="' + type + '" data-slot="' + slot + '" ' +
     'style="background:#1a1f2e;border:1px solid #4a5570;border-radius:4px;color:#8a9bb0;' +
     'font-family:Arial,sans-serif;font-size:12px;padding:4px 10px;cursor:pointer;" ' +
     'title="Effacer tous les marqueurs de ce type sur ce slot">' +
