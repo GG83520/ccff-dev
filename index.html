@@ -1412,40 +1412,64 @@ function toggleMassifs() {
 }
 
 // --- CARROYAGE DFCI ----------------------------------------------------------
-var dfciLayer   = null;
-var dfciVisible = false;
+var dfciLayer    = null;  // groupe principal
+var dfciLayer20  = null;  // mailles 20km (permanent quand actif)
+var dfciLayer2   = null;  // carreaux 2km (permanent quand actif)
+var dfciVisible  = false;
 
-function buildDFCILayer() {
+function buildDFCILayer20() {
   var lg = L.layerGroup();
-  var zoom = map.getZoom();
+  if (typeof DFCI_20KM === 'undefined') return lg;
+  var labels20 = L.layerGroup();
+  L.geoJSON(DFCI_20KM, {
+    style: function() {
+      return { color:'#e8a020', weight:2.5, fillOpacity:0.05, fillColor:'#e8a020', opacity:0.9 };
+    },
+    onEachFeature: function(feature, layer) {
+      var cx = feature.properties.cx;
+      var cy = feature.properties.cy;
+      var code = feature.properties.c;
+      if (cx && cy) {
+        L.marker([cy, cx], {
+          icon: L.divIcon({
+            className: 'dfci-tooltip-10km',
+            html: code,
+            iconSize: [60, 20],
+            iconAnchor: [30, 10]
+          }),
+          interactive: false, keyboard: false
+        }).addTo(labels20);
+      }
+    }
+  }).addTo(lg);
+  lg.addLayer(labels20);
+  return lg;
+}
 
-  if (zoom >= 12) {
-    // Mailles 2km avec popup subdivision 1km au clic
-    if (typeof DFCI_2KM !== 'undefined' && DFCI_2KM !== null) {
-      // Groupe séparé pour les labels — évite les cascades Leaflet dans onEachFeature
-      var labelsLg = L.layerGroup();
-      L.geoJSON(DFCI_2KM, {
-        smoothFactor: 0,
-        style: function() {
-          return { color:'#e8a020', weight:0.8, fillOpacity:0, opacity:0.85 };
-        },
-        onEachFeature: function(feature, layer) {
-          var code = feature.properties.c;
-          var cx   = feature.properties.cx;
-          var cy   = feature.properties.cy;
-          // Label centré — ajouté dans labelsLg, pas dans lg directement
-          if (cx && cy) {
-            L.marker([cy, cx], {
-              icon: L.divIcon({
-                className: 'dfci-label-2km',
-                html: code,
-                iconSize: [70,14], iconAnchor: [35,7]
-              }),
-              interactive: false, keyboard: false
-            }).addTo(labelsLg);
-          }
-          // Clic : detecter la zone 1km selon position exacte du clic
-          layer.on('click', function(e) {
+function buildDFCILayer2km() {
+  var lg = L.layerGroup();
+  if (typeof DFCI_2KM === 'undefined' || DFCI_2KM === null) return lg;
+  var labelsLg = L.layerGroup();
+  L.geoJSON(DFCI_2KM, {
+    smoothFactor: 0,
+    style: function() {
+      return { color:'#e8a020', weight:0.3, fillOpacity:0.03, fillColor:'#e8a020', opacity:0.6 };
+    },
+    onEachFeature: function(feature, layer) {
+      var code = feature.properties.c;
+      var cx   = feature.properties.cx;
+      var cy   = feature.properties.cy;
+      if (cx && cy) {
+        L.marker([cy, cx], {
+          icon: L.divIcon({
+            className: 'dfci-label-2km',
+            html: code,
+            iconSize: [70,14], iconAnchor: [35,7]
+          }),
+          interactive: false, keyboard: false
+        }).addTo(labelsLg);
+      }
+      layer.on('click', function(e) {
             var clickLat = e.latlng.lat;
             var clickLon = e.latlng.lng;
             var bounds   = layer.getBounds();
@@ -1541,51 +1565,41 @@ function buildDFCILayer() {
           });
         }
       }).addTo(lg);
-      lg.addLayer(labelsLg);
-    }
-
-  } else {
-    // Zoom large : mailles 20km
-    if (typeof DFCI_20KM !== 'undefined') {
-      var labels20 = L.layerGroup();
-      L.geoJSON(DFCI_20KM, {
-        style: function() {
-          return { color:'#e8a020', weight:2.5, fillOpacity:0.05, fillColor:'#e8a020', opacity:0.9 };
-        },
-        onEachFeature: function(feature, layer) {
-          var code = feature.properties.c;
-          var cx = feature.properties.cx;
-          var cy = feature.properties.cy;
-          if (cx && cy) {
-            L.marker([cy, cx], {
-              icon: L.divIcon({
-                className: 'dfci-tooltip-10km',
-                html: code,
-                iconSize: [60, 20],
-                iconAnchor: [30, 10]
-              }),
-              interactive: false, keyboard: false
-            }).addTo(labels20);
-          }
-        }
-      }).addTo(lg);
-      lg.addLayer(labels20);
-    }
-  }
+  lg.addLayer(labelsLg);
   return lg;
 }
+
+function buildDFCILayer() {
+  return L.layerGroup(); // compatibilité — non utilisé
+}
+
+
+function dfciUpdateZoom() {
+  if (!dfciVisible) return;
+  var zoom = map.getZoom();
+  if (zoom >= 12) {
+    if (dfciLayer20 && map.hasLayer(dfciLayer20)) map.removeLayer(dfciLayer20);
+    if (dfciLayer2  && !map.hasLayer(dfciLayer2))  map.addLayer(dfciLayer2);
+  } else {
+    if (dfciLayer2  && map.hasLayer(dfciLayer2))  map.removeLayer(dfciLayer2);
+    if (dfciLayer20 && !map.hasLayer(dfciLayer20)) map.addLayer(dfciLayer20);
+  }
+}
+
 function toggleDFCI() {
   var btn = document.getElementById('btn-dfci');
   if (dfciVisible) {
-    if (dfciLayer) map.removeLayer(dfciLayer);
-    dfciLayer = null;
+    if (dfciLayer20 && map.hasLayer(dfciLayer20)) map.removeLayer(dfciLayer20);
+    if (dfciLayer2  && map.hasLayer(dfciLayer2))  map.removeLayer(dfciLayer2);
     dfciVisible = false;
     btn.classList.remove('active');
   } else {
-    dfciLayer = buildDFCILayer();
-    dfciLayer.addTo(map);
+    // Construire une seule fois
+    if (!dfciLayer20) dfciLayer20 = buildDFCILayer20();
+    if (!dfciLayer2)  dfciLayer2  = buildDFCILayer2km();
     dfciVisible = true;
     btn.classList.add('active');
+    dfciUpdateZoom();
   }
 }
 
@@ -1749,16 +1763,9 @@ function toggleDFCI_IGN() {
   }
 }
 
-// Reconstruire la couche DFCI au changement de zoom
+// Basculer entre 20km et 2km selon le zoom — sans reconstruire
 map.on('zoomend', function() {
-  if (dfciVisible) {
-    if (dfciLayer) {
-      dfciLayer.clearLayers();
-      map.removeLayer(dfciLayer);
-    }
-    dfciLayer = buildDFCILayer();
-    dfciLayer.addTo(map);
-  }
+  dfciUpdateZoom();
   // ── F1 : adapter l'opacité du remplissage commune au niveau de zoom ──
   var opacity = communeFillOpacity(map.getZoom());
   [1, 2, 3, 4].forEach(function(n) {
