@@ -1997,21 +1997,7 @@ var ZONE_LABELS = {
 };
 
 function dfciParseCode(raw) {
-  // ── Nettoyage robuste de la saisie ──────────────────────────────────────
-  var s = raw.trim().toUpperCase();
-  // Remplacer les caractères de confusion fréquents sur clavier FR :
-  s = s.replace(/;/g, '.');   // ";" → "." (touches adjacentes sur clavier FR)
-  s = s.replace(/,/g, '.');   // "," → "." (autre confusion courante)
-  s = s.replace(/:/g, '.');   // ":" → "." (Shift+; sur certains claviers)
-  s = s.replace(/\s+/g, ''); // supprimer tous les espaces
-  // Accepter le tiret ou slash comme séparateur de zone : LD44E3-1 ou LD44E3/1
-  s = s.replace(/[-/]([1-5])$/, '.$1');
-  // Accepter la zone collée sans point si dernier caractère est 1-5 après code 2km
-  // ex: LD44E31 → LD44E3.1
-  var mFix = s.match(/^([A-Z]{2}\d{2}[A-J]\d)([1-5])$/);
-  if (mFix) s = mFix[1] + '.' + mFix[2];
-
-  // ── Parsing standard ────────────────────────────────────────────────────
+  var s = raw.trim().toUpperCase().replace(/\s/g,'');
   var m20 = s.match(/^([A-Z]{2}\d{2})$/);
   var m2  = s.match(/^([A-Z]{2}\d{2}[A-J]\d)$/);
   var m1  = s.match(/^([A-Z]{2}\d{2}[A-J]\d)\.([1-5])$/);
@@ -2142,21 +2128,8 @@ function initAutoComplete(n) {
   var sugg = document.getElementById('dfci-sugg-'+n);
   if (!inp) return;
 
-  // Correction en temps réel : majuscules + remplacement ";" par "."
-  inp.addEventListener('keyup', function() {
-    var pos   = inp.selectionStart;
-    var fixed = inp.value.toUpperCase().replace(/;/g,'.').replace(/,/g,'.');
-    if (fixed !== inp.value) {
-      inp.value = fixed;
-      // Restaurer la position du curseur
-      try { inp.setSelectionRange(pos, pos); } catch(e) {}
-    }
-  });
-
   inp.addEventListener('input', function() {
-    var val = inp.value.trim().toUpperCase()
-      .replace(/;/g,'.').replace(/,/g,'.').replace(/:/g,'.')
-      .replace(/\s+/g,'');
+    var val = inp.value.trim().toUpperCase().replace(/\s/g,'');
     sugg.innerHTML = ''; sugg.style.display='none';
     if (val.length < 2) return;
     var matches = [];
