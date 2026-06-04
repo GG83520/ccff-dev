@@ -2445,6 +2445,7 @@ function initCommuneSearch() {
 // MODULE MARQUEURS TACTIQUES — B1 Transit · B2 Engagement · B3 CODIS · B4 Feu
 // ══════════════════════════════════════════════════════════════════════════════
 var marqueursSlot = {
+  0: { transit:[], engagement:[], codis:[], feu:[] }, // sans slot actif
   1: { transit:[], engagement:[], codis:[], feu:[] },
   2: { transit:[], engagement:[], codis:[], feu:[] },
   3: { transit:[], engagement:[], codis:[], feu:[] },
@@ -2593,12 +2594,15 @@ function supprimerTousMarqueurs(slot) {
 
 function supprimerGroupe(type, slot) {
   // Effacer tous les marqueurs d'un même type sur un même slot
+  // Si slot=0 (pas de slot actif), effacer dans tous les slots
   map.closePopup();
-  var s = slot || 0;
-  if (marqueursSlot[s] && marqueursSlot[s][type]) {
-    marqueursSlot[s][type].forEach(function(mkr) { map.removeLayer(mkr); });
-    marqueursSlot[s][type] = [];
-  }
+  var slots = (slot && slot > 0) ? [slot] : [0, 1, 2, 3, 4];
+  slots.forEach(function(s) {
+    if (marqueursSlot[s] && marqueursSlot[s][type]) {
+      marqueursSlot[s][type].forEach(function(mkr) { map.removeLayer(mkr); });
+      marqueursSlot[s][type] = [];
+    }
+  });
 }
 
 document.addEventListener('DOMContentLoaded', function() {
