@@ -2246,6 +2246,10 @@ function initAutoComplete(n) {
       try { inp.setSelectionRange(pos, pos); } catch(e) {}
     }
   });
+  inp.addEventListener('blur', function() {
+    // Au moment où l'opérateur quitte le champ : forcer majuscules + corrections
+    inp.value = inp.value.toUpperCase().replace(/;/g,'.').replace(/,/g,'.');
+  });
 
   inp.addEventListener('input', function() {
     var val = inp.value.trim().toUpperCase()
@@ -2569,9 +2573,8 @@ function supprimerMarqueur(btn) {
   var type  = btn.getAttribute('data-type');
   var slot  = parseInt(btn.getAttribute('data-slot')) || 0;
   var mkrId = parseFloat(btn.getAttribute('data-mkrid'));
-  map.closePopup();
   // Retrouver le marqueur par son ID unique
-  var slots = slot ? [slot] : [0];
+  var slots = slot ? [slot] : [0, 1, 2, 3, 4];
   slots.forEach(function(s) {
     if (!marqueursSlot[s] || !marqueursSlot[s][type]) return;
     marqueursSlot[s][type] = marqueursSlot[s][type].filter(function(mkr) {
@@ -2582,6 +2585,8 @@ function supprimerMarqueur(btn) {
       return true;
     });
   });
+  // Fermer le popup APRÈS la suppression
+  setTimeout(function() { map.closePopup(); }, 50);
 }
 
 function supprimerTousMarqueurs(slot) {
@@ -2595,7 +2600,6 @@ function supprimerTousMarqueurs(slot) {
 function supprimerGroupe(type, slot) {
   // Effacer tous les marqueurs d'un même type sur un même slot
   // Si slot=0 (pas de slot actif), effacer dans tous les slots
-  map.closePopup();
   var slots = (slot && slot > 0) ? [slot] : [0, 1, 2, 3, 4];
   slots.forEach(function(s) {
     if (marqueursSlot[s] && marqueursSlot[s][type]) {
@@ -2603,6 +2607,8 @@ function supprimerGroupe(type, slot) {
       marqueursSlot[s][type] = [];
     }
   });
+  // Fermer le popup APRÈS la suppression
+  setTimeout(function() { map.closePopup(); }, 50);
 }
 
 document.addEventListener('DOMContentLoaded', function() {
