@@ -1547,15 +1547,29 @@ function buildDFCILayer() {
   } else {
     // Zoom large : mailles 20km
     if (typeof DFCI_20KM !== 'undefined') {
+      var labels20 = L.layerGroup();
       L.geoJSON(DFCI_20KM, {
         style: function() {
           return { color:'#e8a020', weight:2.5, fillOpacity:0.05, fillColor:'#e8a020', opacity:0.9 };
         },
         onEachFeature: function(feature, layer) {
           var code = feature.properties.c;
-          layer.bindTooltip(code, {permanent:true, direction:'center', className:'dfci-tooltip-10km'});
+          var cx = feature.properties.cx;
+          var cy = feature.properties.cy;
+          if (cx && cy) {
+            L.marker([cy, cx], {
+              icon: L.divIcon({
+                className: 'dfci-tooltip-10km',
+                html: code,
+                iconSize: [60, 20],
+                iconAnchor: [30, 10]
+              }),
+              interactive: false, keyboard: false
+            }).addTo(labels20);
+          }
         }
       }).addTo(lg);
+      lg.addLayer(labels20);
     }
   }
   return lg;
