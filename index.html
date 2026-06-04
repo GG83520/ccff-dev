@@ -2107,11 +2107,11 @@ function dfciParseCode(raw) {
   s = s.replace(/:/g, '.');
   s = s.replace(/\s+/g, '');
   s = s.replace(/[-/]([1-5])$/, '.$1');
-  var mFix = s.match(/^([A-Z]{2}\d{2}[A-J]\d)([1-5])$/);
+  var mFix = s.match(/^([A-Z]{2}\d{2}[A-HKL]\d)([1-5])$/);
   if (mFix) s = mFix[1] + '.' + mFix[2];
   var m20 = s.match(/^([A-Z]{2}\d{2})$/);
-  var m2  = s.match(/^([A-Z]{2}\d{2}[A-J]\d)$/);
-  var m1  = s.match(/^([A-Z]{2}\d{2}[A-J]\d)\.([1-5])$/);
+  var m2  = s.match(/^([A-Z]{2}\d{2}[A-HKL]\d)$/);
+  var m1  = s.match(/^([A-Z]{2}\d{2}[A-HKL]\d)\.([1-5])$/);
   if (m1)  return { type:'1km',  code2:m1[1], zone:'.'+m1[2], full:s };
   if (m2)  return { type:'2km',  code2:m2[1], full:s };
   if (m20) return { type:'20km', code20:m20[1], full:s };
