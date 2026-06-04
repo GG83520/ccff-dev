@@ -2561,6 +2561,7 @@ function deposerMarqueur(type, lat, lon, dfciCode, container) {
   mkr.setPopupContent(popupFinal);
 
   // Stocker la référence
+  console.log('[Depot] type=' + type + ' slot=' + slot + ' -> total=' + (slot ? marqueursSlot[slot][type].length + 1 : '?'));
   if (slot) {
     marqueursSlot[slot][type].push(mkr);
   } else {
@@ -2602,8 +2603,10 @@ function supprimerGroupe(type, slot) {
   // Effacer tous les marqueurs d'un même type sur un même slot
   // Si slot=0 (pas de slot actif), effacer dans tous les slots
   var slots = (slot && slot > 0) ? [slot] : [0, 1, 2, 3, 4];
+  console.log('[SuppGroupe] type=' + type + ' slot=' + slot + ' slots=' + JSON.stringify(slots));
   slots.forEach(function(s) {
     if (marqueursSlot[s] && marqueursSlot[s][type]) {
+      console.log('[SuppGroupe] slot ' + s + ' -> ' + marqueursSlot[s][type].length + ' marqueur(s)');
       marqueursSlot[s][type].forEach(function(mkr) { map.removeLayer(mkr); });
       marqueursSlot[s][type] = [];
     }
