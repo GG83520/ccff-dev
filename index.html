@@ -2225,7 +2225,8 @@ function dfciSearch(n) {
     if (!f20) return;
     map.setView([f20.properties.cy, f20.properties.cx], 11, {animate:true});
     dfciState[n].highlight = L.geoJSON(f20, {
-      style:{color:col.fill, weight:3, fillColor:col.fill, fillOpacity:0.15}
+      style:{color:col.fill, weight:3, fillColor:col.fill, fillOpacity:0.15},
+      interactive: false
     }).addTo(map);
     // Ne pas interférer avec les couches d'affichage DFCI
     return;
@@ -2235,7 +2236,8 @@ function dfciSearch(n) {
   if (!feat) return;
 
   dfciState[n].highlight = L.geoJSON(feat, {
-    style:{color:col.fill, weight:2.5, fillColor:col.fill, fillOpacity:0.15}
+    style:{color:col.fill, weight:2.5, fillColor:col.fill, fillOpacity:0.15},
+    interactive: false
   }).addTo(map);
 
   var center, popupTxt, zoom;
@@ -2509,11 +2511,11 @@ var MAX_MARQUEURS = 3; // max par type par slot
 // Définition des types
 var TACTIQUE_DEF = {
   transit:    { label:'Point de Transit',   couleur:'#9b59b6', couleurBg:'#2a1040',
-                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36"><path d="M12 0C7.6 0 4 3.6 4 8c0 6 8 18 8 18s8-12 8-18c0-4.4-3.6-8-8-8z" fill="#9b59b6" stroke="#fff" stroke-width="1.5"/><circle cx="12" cy="8" r="4" fill="#fff"/></svg>' },
+                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 24" width="48" height="24"><line x1="2" y1="12" x2="46" y2="12" stroke="#9b59b6" stroke-width="3" stroke-linecap="round"/><polygon points="42,7 48,12 42,17" fill="#9b59b6"/><circle cx="24" cy="12" r="8" fill="none" stroke="#9b59b6" stroke-width="3"/></svg>' },
   engagement: { label:"Point d’engagement", couleur:'#e74c3c', couleurBg:'#3a0a0a',
                 svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36"><polygon points="12,2 22,22 12,18 2,22" fill="#e74c3c" stroke="#fff" stroke-width="1.5"/><line x1="12" y1="18" x2="12" y2="34" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round"/></svg>' },
   codis:      { label:'PC CODIS',           couleur:'#8e44ad', couleurBg:'#2a0a40',
-                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 36" width="28" height="36"><rect x="2" y="2" width="24" height="16" rx="2" fill="#8e44ad" stroke="#fff" stroke-width="1.5"/><path d="M4 4h4v4H4zm5 0h4v4H9zm5 0h4v4h-4zM4 9h4v4H4zm5 0h4v4H9zm5 0h4v4h-4z" fill="#fff" opacity="0.6"/><line x1="14" y1="18" x2="14" y2="34" stroke="#8e44ad" stroke-width="2.5" stroke-linecap="round"/></svg>' },
+                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 40" width="32" height="40"><circle cx="8" cy="5" r="4" fill="#8e44ad"/><circle cx="16" cy="5" r="4" fill="#8e44ad"/><circle cx="24" cy="5" r="4" fill="#8e44ad"/><rect x="2" y="10" width="28" height="18" rx="1" fill="none" stroke="#8e44ad" stroke-width="3"/><line x1="2" y1="28" x2="2" y2="38" stroke="#8e44ad" stroke-width="3" stroke-linecap="round"/></svg>' },
   feu:        { label:'Départ de Feu',      couleur:'#e85d26', couleurBg:'#3a1500',
                 svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28"><polygon points="14,2 17,10 24,10 18,15 20,23 14,18 8,23 10,15 4,10 11,10" fill="#e85d26" stroke="#fff" stroke-width="1.5"/></svg>' },
   harpon:     { label:'HARPON',             couleur:'#ff6600', couleurBg:'#2a1500',
@@ -2553,9 +2555,9 @@ function deposerMarqueur(type, lat, lon, dfciCode, container) {
   var icon = L.divIcon({
     html: iconHtml,
     className: '',
-    iconSize: type === 'feu' ? [28,28] : type === 'harpon' ? [52,36] : [28,36],
-    iconAnchor: type === 'feu' ? [14,14] : type === 'harpon' ? [26,18] : [14,34],
-    popupAnchor: [0, type === 'feu' ? -16 : type === 'harpon' ? -20 : -36]
+    iconSize: type === 'feu' ? [28,28] : type === 'harpon' ? [52,36] : type === 'transit' ? [48,24] : type === 'codis' ? [32,40] : [28,36],
+    iconAnchor: type === 'feu' ? [14,14] : type === 'harpon' ? [26,18] : type === 'transit' ? [24,12] : type === 'codis' ? [16,38] : [14,34],
+    popupAnchor: [0, type === 'feu' ? -16 : type === 'harpon' ? -20 : type === 'transit' ? -16 : -38]
   });
 
   // Popup du marqueur
