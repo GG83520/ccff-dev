@@ -1791,6 +1791,9 @@ map.on('zoomend', function() {
     if (dfciState[n].commune) {
       dfciState[n].commune.setStyle({ fillOpacity: opacity });
     }
+    if (dfciState[n].highlight) {
+      dfciState[n].highlight.setStyle({ fillOpacity: opacity });
+    }
   });
 });
 
@@ -2221,7 +2224,7 @@ function dfciSearch(n) {
     if (!f20) return;
     map.setView([f20.properties.cy, f20.properties.cx], 11, {animate:true});
     dfciState[n].highlight = L.geoJSON(f20, {
-      style:{color:col.fill, weight:3, fillColor:col.fill, fillOpacity:0.15},
+      style:{color:col.fill, weight:3, fillColor:col.fill, fillOpacity:communeFillOpacity(map.getZoom())},
       onEachFeature: function(feature, layer) {
         layer.on('click', function(e) { map.fireEvent('click', e); });
       }
@@ -2234,7 +2237,7 @@ function dfciSearch(n) {
   if (!feat) return;
 
   dfciState[n].highlight = L.geoJSON(feat, {
-    style:{color:col.fill, weight:2.5, fillColor:col.fill, fillOpacity:0.15},
+    style:{color:col.fill, weight:2.5, fillColor:col.fill, fillOpacity:communeFillOpacity(map.getZoom())},
     onEachFeature: function(feature, layer) {
       layer.on('click', function(e) { map.fireEvent('click', e); });
     }
