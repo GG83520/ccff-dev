@@ -181,6 +181,17 @@ html,body{height:100%;overflow:hidden;background:#0d1117;color:#e0e8f0;font-fami
   }
 .tb-icon{font-size:18px;display:block;margin-bottom:2px}
 .tb-label{font-size:10px;font-family:'Barlow Condensed',sans-serif;letter-spacing:0.3px}
+
+  .dfci-suggestion {
+    padding:6px 10px; cursor:pointer;
+    font-family:'Barlow Condensed',sans-serif; font-size:13px; color:#e0e0e0;
+    border-bottom:1px solid #1e2733;
+    display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .dfci-suggestion:hover { background:#1a2535; }
+  .dfci-suggestion:last-child { border-bottom:none; }
+  .dfci-sug-code { color:#e8a020; font-weight:700; letter-spacing:0.5px; flex-shrink:0; }
+  .dfci-sug-type { font-size:10px; color:#6a7a8a; flex-shrink:0; }
 </style>
 </head>
 <body>
@@ -304,7 +315,7 @@ var layers = {
   osm:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}),
   topo: L.tileLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'© OpenTopoMap'}),
   sat:  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'© Esri'}),
-  ign:  L.tileLayer('https://data.geopf.fr/private/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEM.SCAN25TOUR&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png&APIKEY=ign_scan_ws',{maxZoom:16,attribution:'© IGN'})
+  ign:  L.tileLayer('https://data.geopf.fr/private/wmts?apikey=ign_scan_ws' + '&LAYER=GEOGRAPHICALGRIDSYSTEMS.MAPS.SCAN25TOUR&EXCEPTIONS=text/xml' + '&FORMAT=image/jpeg&SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile' + '&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}', {maxNativeZoom:16, maxZoom:18, attribution:'© IGN Géoportail — SCAN25'})
 };
 
 function initApp() {
@@ -502,9 +513,12 @@ function fetchCommune(n, lat, lon) {
       var col     = COULEURS_COMMUNE[n];
 
       // ── Mettre à jour la commune dans le cadre incident ──
-      if (incidentData[n] && incidentData[n].code) {
-        incidentData[n].commune = nomComm;
-        renderIncidentsPanel();
+      // HARPON : pas de panel incidents — commune mise à jour dans le bandeau uniquement
+      if (n === 1) {
+        var bc = document.getElementById('bandeau-chantier');
+        if (bc && bc.textContent.indexOf('Aucun') === -1) {
+          // enrichir le bandeau avec la commune si chantier actif
+        }
       }
 
       // Contour pointillé — fillOpacity adaptatif selon zoom (géré par zoomend)
@@ -1052,6 +1066,28 @@ var COMMUNES_VAR = [{"nom":"Toulon","insee":"83137","cp":"83000","lat":43.1242,"
 // Override pour bouton GO
 document.getElementById('btn-go').onclick = function() { dfciSearch(1); };
 
+
+
+function setBandeauChantier(code) {
+  var el = document.getElementById('bandeau-chantier');
+  if (!el) return;
+  var now = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  el.textContent = code + ' — ' + now;
+  el.style.color = '#ff3333';
+  el.style.borderColor = '#ff3333';
+  var dot = document.getElementById('statut-dot');
+  var txt = document.getElementById('statut-txt');
+  if (dot) dot.style.background = '#4caf50';
+  if (txt) txt.textContent = 'Chantier actif';
+}
+
+function ouvrirIncident(n, code, info) {
+  // Stub HARPON — mettre à jour le bandeau chantier
+  if (n === 1 && code) {
+    setBandeauChantier(code);
+  }
+}
+
 function dfciClearSearch(n) {
   var inp = document.getElementById('dfci-input-'+n);
   if (inp) inp.value = '';
@@ -1173,14 +1209,26 @@ function initVigies() {
 
 function toggleVigies() {
   var btn = document.getElementById('btn-vigies');
+  var btnC = document.getElementById('btn-vigies-cercles');
   if (vigiesVisible) {
-    map.removeLayer(vigiesLayer);
-    vigiesVisible = false;
-    btn.classList.remove('actif');
+    if (vigiesLayer) { map.removeLayer(vigiesLayer); vigiesLayer = null; }
+    if (visuVigies)  { map.removeLayer(visuVigies);  visuVigies = null; }
+    vigiesVisible = false; visuVisible = false;
+    if (btn) btn.classList.remove('actif');
+    if (btnC) btnC.style.display = 'none';
   } else {
+    vigiesLayer = L.layerGroup();
+    VIGIES_DATA.forEach(function(v) {
+      var popup = '<div class="popup-inner"><b style="color:#ff6600;font-family:Barlow Condensed,sans-serif;font-size:14px;">'
+        + v.nom + '</b><br><span style="font-size:11px;color:#6a7a8a;">' + v.dfci + '</span></div>';
+      L.marker([v.lat, v.lon], {icon: makeVigieIcon()})
+        .bindPopup(popup, {className:'custom-popup', maxWidth:220})
+        .addTo(vigiesLayer);
+    });
     vigiesLayer.addTo(map);
     vigiesVisible = true;
-    btn.classList.add('actif');
+    if (btn) btn.classList.add('actif');
+    if (btnC) btnC.style.display = 'flex';
   }
 }
 
@@ -1205,6 +1253,15 @@ function initCommuneSearch() {
         inp.value = c.nom;
         sugg.style.display = 'none';
         map.setView([c.lat, c.lon], 13);
+        // Déposer un marqueur temporaire sur la commune
+        if (window._communeMarker) map.removeLayer(window._communeMarker);
+        window._communeMarker = L.circleMarker([c.lat, c.lon], {
+          radius:8, color:'#e85d26', fillColor:'#e85d26', fillOpacity:0.8, weight:2
+        }).bindPopup(
+          '<div class="popup-inner"><b style="color:#e8a020;font-family:Barlow Condensed,sans-serif;font-size:15px;">'
+          + c.nom + '</b></div>',
+          {className:'custom-popup', maxWidth:200}
+        ).addTo(map).openPopup();
       });
       sugg.appendChild(div);
     });
