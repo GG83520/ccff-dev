@@ -240,6 +240,7 @@ html,body{height:100%;overflow:hidden;background:#0d1117;color:#e0e8f0;font-fami
       <input id="commune-input" type="text" placeholder="Commune..."/>
       <div id="commune-sugg" style="display:none"></div>
     </div>
+    <button id="btn-clear-commune" onclick="clearCommuneSearch()" title="Effacer commune" style="background:#2a3245;border:1px solid #4a5570;border-radius:6px;color:#8a9bb0;padding:6px 8px;cursor:pointer;font-size:12px">✕</button>
   </div>
 
   <!-- CARTE -->
@@ -256,7 +257,8 @@ html,body{height:100%;overflow:hidden;background:#0d1117;color:#e0e8f0;font-fami
   <!-- BARRE OUTILS BAS -->
   <div id="toolbar">
     <button class="tool-btn" id="btn-insert" onclick="toggleInsertPoints()">📍 Insert Points</button>
-    <button class="tool-btn" id="btn-vigies" onclick="toggleVigies()">🐞 Vigies</button>
+    <button class="tool-btn" id="btn-vigies" onclick="toggleVigies()">📡 Vigies</button>
+    <button class="tool-btn" id="btn-vigies-cercles" onclick="toggleCerclesVigies()" style="display:none">⭕ 5km</button>
     <button class="tool-btn" id="btn-rapport" onclick="toggleRapport()">📋 Rapport</button>
     <button class="tool-btn" id="btn-layers" onclick="toggleFondSelector()">🗺️ Fonds</button>
   </div>
@@ -1233,6 +1235,15 @@ function toggleVigies() {
 }
 
 // ── RECHERCHE COMMUNE ─────────────────────────────────────────────────────────
+
+function clearCommuneSearch() {
+  var inp = document.getElementById('commune-input');
+  var sugg = document.getElementById('commune-sugg');
+  if (inp) inp.value = '';
+  if (sugg) { sugg.style.display='none'; sugg.innerHTML=''; }
+  if (window._communeMarker) { map.removeLayer(window._communeMarker); window._communeMarker = null; }
+}
+
 function initCommuneSearch() {
   var inp = document.getElementById('commune-input');
   var sugg = document.getElementById('commune-sugg');
@@ -1241,8 +1252,13 @@ function initCommuneSearch() {
     var val = this.value.trim().toUpperCase();
     sugg.innerHTML = '';
     if (val.length < 2) { sugg.style.display='none'; return; }
+    // Recherche tolérante : startsWith OU contient (pour "Sainte" vs "Saint" etc.)
     var matches = COMMUNES_VAR.filter(function(c) {
-      return c.nom.toUpperCase().indexOf(val) === 0;
+      var nom = c.nom.toUpperCase();
+      // Normaliser : Sainte → Saint, Saint → Saint
+      var valN = val.replace(/SAINTE-/,'SAINT-').replace(/SAINTE /,'SAINT ');
+      var nomN = nom.replace(/SAINTE-/,'SAINT-').replace(/SAINTE /,'SAINT ');
+      return nomN.indexOf(valN) === 0 || nom.indexOf(val) === 0;
     }).slice(0,8);
     if (!matches.length) { sugg.style.display='none'; return; }
     matches.forEach(function(c) {
@@ -1255,13 +1271,26 @@ function initCommuneSearch() {
         map.setView([c.lat, c.lon], 13);
         // Déposer un marqueur temporaire sur la commune
         if (window._communeMarker) map.removeLayer(window._communeMarker);
+        // Trouver le carreau DFCI correspondant
+        var dfciCode = '';
+        if (typeof DFCI_2KM !== 'undefined') {
+          var best = null, bestDist = 999;
+          DFCI_2KM.features.forEach(function(f) {
+            var dx = f.properties.cx - c.lon, dy = f.properties.cy - c.lat;
+            var d = dx*dx + dy*dy;
+            if (d < bestDist) { bestDist = d; best = f; }
+          });
+          if (best) dfciCode = best.properties.c;
+        }
+        var popupHtml = '<div class="popup-inner" style="min-width:180px;">'
+          + '<b style="color:#e8a020;font-family:Barlow Condensed,sans-serif;font-size:15px;">' + c.nom + '</b>';
+        if (dfciCode) popupHtml += '<br><span style="font-size:12px;color:#7ab3f0;font-family:Barlow Condensed,sans-serif;">'
+          + '📐 ' + dfciCode + ' (carreau 2km)</span>';
+        popupHtml += '</div>';
         window._communeMarker = L.circleMarker([c.lat, c.lon], {
           radius:8, color:'#e85d26', fillColor:'#e85d26', fillOpacity:0.8, weight:2
-        }).bindPopup(
-          '<div class="popup-inner"><b style="color:#e8a020;font-family:Barlow Condensed,sans-serif;font-size:15px;">'
-          + c.nom + '</b></div>',
-          {className:'custom-popup', maxWidth:200}
-        ).addTo(map).openPopup();
+        }).bindPopup(popupHtml, {className:'custom-popup', maxWidth:220})
+          .addTo(map).openPopup();
       });
       sugg.appendChild(div);
     });
