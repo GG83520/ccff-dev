@@ -6,26 +6,6 @@
 <title>HARPON83 — Cartographie terrain</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js">
-function toggleCerclesVigies() {
-  var btn = document.getElementById('btn-vigies-cercles');
-  if (visuVisible) {
-    if (visuVigies) map.removeLayer(visuVigies);
-    visuVigies = null; visuVisible = false;
-    if (btn) btn.classList.remove('actif');
-  } else {
-    visuVigies = L.layerGroup();
-    if (typeof VIGIES_DATA !== 'undefined') {
-      VIGIES_DATA.forEach(function(v) {
-        L.circle([v.lat,v.lon],{radius:5000,color:'#ff6600',weight:1,
-          fillColor:'#ff6600',fillOpacity:0.04,dashArray:'6 4'}).addTo(visuVigies);
-      });
-    }
-    visuVigies.addTo(map);
-    visuVisible = true;
-    if (btn) btn.classList.add('actif');
-  }
-}
-
 </script>
 <script src="dfci_official.js?v=20260604"></script>
 <style>
@@ -1232,6 +1212,27 @@ function toggleVigies() {
     vigiesVisible = true;
     if (btn) btn.classList.add('actif');
     if (btnC) btnC.style.display = 'flex';
+  }
+}
+
+
+function toggleCerclesVigies() {
+  var btn = document.getElementById('btn-vigies-cercles');
+  if (visuVisible) {
+    if (visuVigies) { map.removeLayer(visuVigies); visuVigies = null; }
+    visuVisible = false;
+    if (btn) btn.classList.remove('actif');
+  } else {
+    visuVigies = L.layerGroup();
+    VIGIES_DATA.forEach(function(v) {
+      L.circle([v.lat, v.lon], {
+        radius: 5000, color: '#ff6600', weight: 1.5,
+        fillColor: '#ff6600', fillOpacity: 0.06, dashArray: '6 4'
+      }).addTo(visuVigies);
+    });
+    visuVigies.addTo(map);
+    visuVisible = true;
+    if (btn) btn.classList.add('actif');
   }
 }
 
