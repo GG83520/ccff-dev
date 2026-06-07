@@ -49,6 +49,16 @@ html,body{height:100%;overflow:hidden;background:#0d1117;color:#e0e8f0;font-fami
 #dfci-sugg-1{position:absolute;top:100%;left:0;right:0;background:#1a2030;border:1px solid #2a3040;border-radius:0 0 6px 6px;z-index:1000;max-height:180px;overflow-y:auto}
 .dfci-sugg-item{padding:6px 10px;font-family:'Barlow Condensed',sans-serif;font-size:13px;color:#c0d0e0;cursor:pointer;border-bottom:1px solid #1a2535}
 .dfci-sugg-item:hover{background:#2a3245}
+  .dfci-suggestion {
+    padding:7px 12px; cursor:pointer;
+    font-family:'Barlow Condensed',sans-serif; font-size:13px; color:#e0e0e0;
+    border-bottom:1px solid #1e2733;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .dfci-suggestion:hover { background:#1a2535; }
+  .dfci-suggestion:last-child { border-bottom:none; }
+  .dfci-sug-code { color:#e8a020; font-weight:700; letter-spacing:0.5px; }
+  .dfci-sug-type { font-size:10px; color:#6a7a8a; }
 #dfci-sugg-container{position:relative;flex:1;display:flex;flex-direction:column}
 #commune-input{flex:1;background:#2a3245;border:1.5px solid #4a5570;border-radius:6px;color:#fff;font-family:'Barlow Condensed',sans-serif;font-size:13px;padding:6px 10px;outline:none;max-width:180px}
 #commune-input::placeholder{color:#4a5570}
@@ -224,7 +234,8 @@ html,body{height:100%;overflow:hidden;background:#0d1117;color:#e0e8f0;font-fami
   <!-- BARRE OUTILS BAS -->
   <div id="toolbar">
     <button class="tool-btn" id="btn-insert" onclick="toggleInsertPoints()">📍 Insert Points</button>
-    <button class="tool-btn" id="btn-vigies" onclick="toggleVigies()">🐞 Vigies</button>
+    <button class="tool-btn" id="btn-vigies" onclick="toggleVigies()">📡 Vigies</button>
+    <button class="tool-btn" id="btn-vigies-cercles" onclick="toggleCerclesVigies()" style="display:none">⭕ Cercles 5km</button>
     <button class="tool-btn" id="btn-rapport" onclick="toggleRapport()">📋 Rapport</button>
     <button class="tool-btn" id="btn-layers" onclick="toggleFondSelector()">🗺️ Fonds</button>
   </div>
@@ -283,7 +294,7 @@ var layers = {
   osm:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}),
   topo: L.tileLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'© OpenTopoMap'}),
   sat:  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'© Esri'}),
-  ign:  L.tileLayer.wms('https://data.geopf.fr/wms-r/wms',{layers:'GEOGRAPHICALGRIDSYSTEM.SCAN25TOUR',format:'image/png',transparent:false,version:'1.3.0',maxZoom:18,attribution:'© IGN'})
+  ign:  L.tileLayer('https://data.geopf.fr/private/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEM.SCAN25TOUR&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/png&APIKEY=ign_scan_ws',{maxZoom:16,attribution:'© IGN'})
 };
 
 function initApp() {
@@ -413,41 +424,6 @@ function communeFillOpacity(zoom) {
   if (zoom <= 13) return 0.12;
   return 0.06;
 }
-var ZONE_LABELS = {
-  '.1':'Haut Gauche', '.2':'Haut Droit',
-  '.3':'Bas Droit',   '.4':'Bas Gauche', '.5':'Centre'
-};
-
-function dfciFindFeature2km(code2) {
-  if (!DFCI_2KM) return null;
-  for (var i=0;i<DFCI_2KM.features.length;i++)
-    if (DFCI_2KM.features[i].properties.c===code2) return DFCI_2KM.features[i];
-  return null;
-}
-function dfciFindFeature20km(code20) {
-  if (!DFCI_20KM) return null;
-  for (var i=0;i<DFCI_20KM.features.length;i++)
-    if (DFCI_20KM.features[i].properties.c===code20) return DFCI_20KM.features[i];
-  return null;
-}
-function dfciZoneCenter(feat, zone) {
-  var coords=feat.geometry.coordinates[0];
-  var lons=coords.slice(0,4).map(function(c){return c[0];});
-  var lats=coords.slice(0,4).map(function(c){return c[1];});
-  var minLon=Math.min.apply(null,lons),maxLon=Math.max.apply(null,lons);
-  var minLat=Math.min.apply(null,lats),maxLat=Math.max.apply(null,lats);
-  var midLon=(minLon+maxLon)/2,midLat=(minLat+maxLat)/2;
-  var centers={'.1':[(midLat+maxLat)/2,(minLon+midLon)/2],'.2':[(midLat+maxLat)/2,(midLon+maxLon)/2],
-    '.3':[(minLat+midLat)/2,(midLon+maxLon)/2],'.4':[(minLat+midLat)/2,(minLon+midLon)/2],'.5':[midLat,midLon]};
-  return centers[zone]||[midLat,midLon];
-}
-function dfciClearSearch(n) {
-  if (dfciState[n].marker)       { map.removeLayer(dfciState[n].marker);       dfciState[n].marker=null; }
-  if (dfciState[n].highlight)    { map.removeLayer(dfciState[n].highlight);    dfciState[n].highlight=null; }
-  if (dfciState[n].commune)      { map.removeLayer(dfciState[n].commune);      dfciState[n].commune=null; }
-  if (dfciState[n].communeLabel) { map.removeLayer(dfciState[n].communeLabel); dfciState[n].communeLabel=null; }
-}
-
 function dfciParseCode(raw) {
   var s = raw.trim().toUpperCase();
   s = s.replace(/;/g, '.');
@@ -860,7 +836,7 @@ function dfciUpdateZoom() {
   }
 }
 function toggleInsertPoints() {
-  var btn = document.getElementById('btn-insert');
+  var btn = document.getElementById('btn-dfci');
   if (dfciVisible) {
     // Désactiver couche JS (données/clics)
     if (dfciLayer20 && map.hasLayer(dfciLayer20)) map.removeLayer(dfciLayer20);
@@ -1097,21 +1073,54 @@ function initZoomend() {
 }
 
 // ── VIGIES ────────────────────────────────────────────────────────────────────
-function initVigies() {
-  // Vigies légères — marqueurs seuls (pas de cercles par défaut sur mobile)
-  vigiesLayer = L.layerGroup();
+function makeVigieIcon() {
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36">'
+    + '<line x1="14" y1="34" x2="14" y2="12" stroke="#ff6600" stroke-width="2.5" stroke-linecap="round"/>'
+    + '<line x1="6"  y1="16" x2="22" y2="16" stroke="#ff6600" stroke-width="2" stroke-linecap="round"/>'
+    + '<line x1="8"  y1="20" x2="20" y2="20" stroke="#ff6600" stroke-width="1.8" stroke-linecap="round"/>'
+    + '<line x1="10" y1="24" x2="18" y2="24" stroke="#ff6600" stroke-width="1.5" stroke-linecap="round"/>'
+    + '<path d="M6,8 Q14,2 22,8" stroke="#ff6600" stroke-width="1.5" fill="none" opacity="0.7"/>'
+    + '<path d="M2,5 Q14,-3 26,5" stroke="#ff6600" stroke-width="1.2" fill="none" opacity="0.4"/>'
+    + '<circle cx="14" cy="12" r="3" fill="#ff6600"/>'
+    + '<circle cx="14" cy="12" r="1.5" fill="#fff"/>'
+    + '</svg>';
+  return L.divIcon({html:svg,className:'vigie-icon',iconSize:[28,36],iconAnchor:[14,34],popupAnchor:[0,-34]});
 }
+
+function initVigies() {
+  // Rien à faire — vigiesLayer créé à la demande dans toggleVigies
+}
+
+var visuVigies = null;
+var visuVisible = false;
 
 function toggleVigies() {
   var btn = document.getElementById('btn-vigies');
   if (vigiesVisible) {
-    map.removeLayer(vigiesLayer);
-    vigiesVisible = false;
+    if (vigiesLayer) map.removeLayer(vigiesLayer);
+    if (visuVigies)  map.removeLayer(visuVigies);
+    vigiesLayer = null; visuVigies = null;
+    vigiesVisible = false; visuVisible = false;
     btn.classList.remove('actif');
+    document.getElementById('btn-vigies-cercles').style.display = 'none';
   } else {
+    // Créer markers vigies
+    vigiesLayer = L.layerGroup();
+    if (typeof makeVigieIcon === 'function' && typeof VIGIES_DATA !== 'undefined') {
+      VIGIES_DATA.forEach(function(v) {
+        var popup = '<div class="popup-inner" style="min-width:180px;">'
+          + '<b style="color:#ff6600;font-family:Barlow Condensed,sans-serif;font-size:15px;">' + v.nom + '</b><br/>'
+          + '<span style="font-size:11px;color:#6a7a8a;">' + v.dfci + '</span>'
+          + '</div>';
+        L.marker([v.lat,v.lon],{icon:makeVigieIcon()})
+          .bindPopup(popup,{className:'custom-popup',maxWidth:220})
+          .addTo(vigiesLayer);
+      });
+    }
     vigiesLayer.addTo(map);
     vigiesVisible = true;
     btn.classList.add('actif');
+    document.getElementById('btn-vigies-cercles').style.display = 'flex';
   }
 }
 
