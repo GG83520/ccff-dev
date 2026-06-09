@@ -1697,23 +1697,38 @@ function sdpSearchAddr() {
   var commune = sdpCommuneSelect ? sdpCommuneSelect.nom : '';
   var queryFull = commune ? (val+' '+commune+' Var France') : (val+' Var France');
 
-  // Source 1 : BAN (adresses officielles)
-  var banUrl = 'https://api-adresse.data.gouv.fr/search/?q='+encodeURIComponent(val)+'&limit=5&autocomplete=0'
-    + (sdpCommuneSelect ? ('&lat='+sdpCommuneSelect.lat+'&lon='+sdpCommuneSelect.lon) : '&lat=43.4&lon=6.2');
-
-  // Source 2 : IGN Geoportail (toponymies SCAN25 : lieux-dits, sommets, hameaux)
-  var dd = sdpCommuneSelect ? 0.12 : 1.0;
+  // Bbox Var strict (toujours appliquée si pas de commune)
+  // Avec commune : bbox ~10km autour du centre
+  var VAR_BBOX = {minLon:5.67, minLat:42.98, maxLon:7.72, maxLat:43.93};
   var clat = sdpCommuneSelect ? sdpCommuneSelect.lat : 43.4;
   var clon = sdpCommuneSelect ? sdpCommuneSelect.lon : 6.2;
-  var ignUrl = 'https://data.geopf.fr/geocodage/search?q='
-    + encodeURIComponent(commune ? val+' '+commune : val)
-    + '&index=PositionOfInterest&limit=8'
-    + '&bbox='+(clon-dd)+','+(clat-dd)+','+(clon+dd)+','+(clat+dd);
+  var dd   = sdpCommuneSelect ? 0.10 : 999; // 999 = pas de restriction sup à la bbox Var
+  var bboxMinLon = sdpCommuneSelect ? Math.max(clon-dd, VAR_BBOX.minLon) : VAR_BBOX.minLon;
+  var bboxMinLat = sdpCommuneSelect ? Math.max(clat-dd, VAR_BBOX.minLat) : VAR_BBOX.minLat;
+  var bboxMaxLon = sdpCommuneSelect ? Math.min(clon+dd, VAR_BBOX.maxLon) : VAR_BBOX.maxLon;
+  var bboxMaxLat = sdpCommuneSelect ? Math.min(clat+dd, VAR_BBOX.maxLat) : VAR_BBOX.maxLat;
 
-  // Source 3 : Nominatim OSM (complement)
+  // Source 1 : BAN — filtre par lat/lon centré + postcode 83 si pas de commune
+  var banUrl = 'https://api-adresse.data.gouv.fr/search/?q='
+    + encodeURIComponent(val) + '&limit=5&autocomplete=0'
+    + '&lat=' + clat + '&lon=' + clon;
+  // Sans commune sélectionnée : ajouter "83" pour forcer le Var
+  // BAN : sans commune, ajouter ' 83' dans la query pour forcer le departement
+  var banUrlFinal = sdpCommuneSelect ? banUrl : 'https://api-adresse.data.gouv.fr/search/?q='+encodeURIComponent(val+' 83')+'&limit=5&autocomplete=0&lat='+clat+'&lon='+clon;
+
+  // Source 2 : IGN Géoplateforme — bbox stricte autour commune ou bbox Var
+  var ignUrl = 'https://data.geopf.fr/geocodage/search?q='
+    + encodeURIComponent(commune ? val + ' ' + commune : val)
+    + '&index=PositionOfInterest&limit=8'
+    + '&bbox=' + bboxMinLon + ',' + bboxMinLat + ',' + bboxMaxLon + ',' + bboxMaxLat;
+
+  // Source 3 : Nominatim — viewbox Var strict, bounded=1 interdit les résultats hors zone
+  var nomViewbox = sdpCommuneSelect
+    ? (bboxMinLon+','+bboxMaxLat+','+bboxMaxLon+','+bboxMinLat)
+    : (VAR_BBOX.minLon+','+VAR_BBOX.maxLat+','+VAR_BBOX.maxLon+','+VAR_BBOX.minLat);
   var nomUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=4'
-    + '&q='+encodeURIComponent(queryFull)
-    + '&viewbox=5.67,43.93,7.72,42.98&bounded=1&accept-language=fr';
+    + '&q=' + encodeURIComponent(commune ? val + ' ' + commune : val + ' Var')
+    + '&viewbox=' + nomViewbox + '&bounded=1&accept-language=fr';
 
   var done = 0;
   var banR = [], ignR = [], nomR = [];
@@ -1794,7 +1809,7 @@ function sdpSearchAddr() {
     });
   }
 
-  fetch(banUrl)
+  fetch(sdpCommuneSelect ? banUrl : banUrlFinal)
     .then(function(r){return r.json();})
     .then(function(d){banR=d.features||[];merge();})
     .catch(function(){merge();});
