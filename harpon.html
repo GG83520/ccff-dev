@@ -1672,9 +1672,22 @@ function sdpSelectCommune(cm) {
   var ctx = document.getElementById('sdp-commune-context');
   ctx.textContent = '📍 ' + cm.nom + ' — saisir une adresse ci-dessous';
   ctx.style.display = 'block';
-  // Vider les résultats précédents
   document.getElementById('sdp-results').innerHTML = '';
-  // Mettre le focus sur l'adresse
+
+  // Récupérer le code INSEE pour filtrage BAN strict
+  if (!cm.insee) {
+    fetch('https://geo.api.gouv.fr/communes?nom=' + encodeURIComponent(cm.nom)
+          + '&fields=code&format=json&limit=1')
+      .then(function(r){ return r.json(); })
+      .then(function(data) {
+        if (data && data.length > 0) {
+          sdpCommuneSelect.insee = data[0].code;
+          ctx.textContent = '📍 ' + cm.nom + ' (' + data[0].code + ') — saisir une adresse';
+        }
+      })
+      .catch(function(){});
+  }
+
   setTimeout(function() {
     document.getElementById('sdp-addr-input').focus();
   }, 100);
@@ -1708,13 +1721,23 @@ function sdpSearchAddr() {
   var bboxMaxLon = sdpCommuneSelect ? Math.min(clon+dd, VAR_BBOX.maxLon) : VAR_BBOX.maxLon;
   var bboxMaxLat = sdpCommuneSelect ? Math.min(clat+dd, VAR_BBOX.maxLat) : VAR_BBOX.maxLat;
 
-  // Source 1 : BAN — filtre par lat/lon centré + postcode 83 si pas de commune
-  var banUrl = 'https://api-adresse.data.gouv.fr/search/?q='
-    + encodeURIComponent(val) + '&limit=5&autocomplete=0'
-    + '&lat=' + clat + '&lon=' + clon;
-  // Sans commune sélectionnée : ajouter "83" pour forcer le Var
-  // BAN : sans commune, ajouter ' 83' dans la query pour forcer le departement
-  var banUrlFinal = sdpCommuneSelect ? banUrl : 'https://api-adresse.data.gouv.fr/search/?q='+encodeURIComponent(val+' 83')+'&limit=5&autocomplete=0&lat='+clat+'&lon='+clon;
+  // Source 1 : BAN — citycode si commune selectionnee (filtre strict commune)
+  var banBase = 'https://api-adresse.data.gouv.fr/search/?q='
+    + encodeURIComponent(val) + '&limit=8&autocomplete=0';
+  var banUrl;
+  if (sdpCommuneSelect && sdpCommuneSelect.insee) {
+    // Filtre strict commune via code INSEE = uniquement les adresses de la commune
+    banUrl = banBase + '&citycode=' + sdpCommuneSelect.insee;
+  } else if (sdpCommuneSelect) {
+    // Code INSEE pas encore charge : filtre par lat/lon proche
+    banUrl = banBase + '&lat=' + clat + '&lon=' + clon;
+  } else {
+    // Pas de commune : forcer le Var via " 83"
+    banUrl = 'https://api-adresse.data.gouv.fr/search/?q='
+      + encodeURIComponent(val + ' 83') + '&limit=5&autocomplete=0'
+      + '&lat=43.4&lon=6.2';
+  }
+  var banUrlFinal = banUrl;
 
   // Source 2 : IGN Géoplateforme — bbox stricte autour commune ou bbox Var
   var ignUrl = 'https://data.geopf.fr/geocodage/search?q='
@@ -1809,7 +1832,7 @@ function sdpSearchAddr() {
     });
   }
 
-  fetch(sdpCommuneSelect ? banUrl : banUrlFinal)
+  fetch(banUrl)
     .then(function(r){return r.json();})
     .then(function(d){banR=d.features||[];merge();})
     .catch(function(){merge();});
