@@ -1200,7 +1200,7 @@
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:#4caf50;letter-spacing:1px;padding:2px 4px 4px;">PATROUILLES LIVE</div>
       <button class="layer-btn" id="btn-wfs-patrouille" onclick="toggleWFSPatrouilles()">🚶 Patrouilles actives</button>
       <button class="layer-btn wms-cii disabled" id="btn-wms-patrouille-txt" title="Fonctionnalité réservée — v2">📋 Détail patrouilles</button>
-      <button class="layer-btn wms-cii disabled" id="btn-wms-vigie" title="En attente structure données CII">🔭 Vigies live (CII)</button>
+      <button class="layer-btn" id="btn-wfs-vigie" onclick="toggleWFSVigies()">🔭 Vigies live (CII)</button>
     </div>
 
     <!-- Cadres Incidents — zone DEMO -->
@@ -3340,6 +3340,161 @@ function clearWMSTimers() {
       clearInterval(wmsLayers[key]._refreshTimer);
     }
   });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MODULE WFS VIGIES CII — Données live depuis telealerte.net
+// Structure JSON : { "type": "vigie", "liste": [ { id, commune_insee,
+//   commune_nom, vigie_active } ] }
+// Seules les entrées avec vigie_active === "1" sont affichées.
+// Jointure locale commune_nom / commune_insee → COMMUNES_VAR pour lat/lon.
+// ══════════════════════════════════════════════════════════════════════════════
+
+var WFS_VIGIE_URL = 'http://localhost:8766/vigies';
+
+var wfsVigiesVisible = false;
+var wfsVigiesLayer   = null;
+var wfsVigiesTimer   = null;
+var wfsVigiesLastMAJ = null;
+
+// ── Icône vigie CII — losange rouge pour se distinguer des vigies CCFF ────────
+function makeWFSVigieIcon() {
+  var html =
+    '<div style="width:32px;height:32px;background:#3a0a0a;border:2.5px solid #e85d26;'
+    + 'border-radius:4px;transform:rotate(45deg);display:flex;align-items:center;'
+    + 'justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.55),0 0 0 3px #e85d2633;">'
+    + '<span style="transform:rotate(-45deg);font-size:14px;line-height:1;">🔭</span>'
+    + '</div>';
+  return L.divIcon({
+    html:        html,
+    className:   '',
+    iconSize:    [32, 32],
+    iconAnchor:  [16, 16],
+    popupAnchor: [0, -20]
+  });
+}
+
+// ── Popup vigie CII ───────────────────────────────────────────────────────────
+function buildWFSVigiePopup(entry) {
+  var heure = wfsVigiesLastMAJ || '--:--';
+  return '<div class="popup-inner" style="min-width:210px;">'
+    + '<div class="popup-header">'
+    + '<div class="popup-icon" style="background:#3a0a0a;font-size:18px;">🔭</div>'
+    + '<div>'
+    + '<div class="popup-title" style="color:#e85d26;">' + entry.commune_nom + '</div>'
+    + '<div class="popup-sub">Vigie active — GoAlert/CII</div>'
+    + '</div></div>'
+    + '<div class="popup-row">'
+    + '<span class="lbl">INSEE</span>'
+    + '<span class="val">' + entry.commune_insee + '</span>'
+    + '</div>'
+    + '<div class="popup-row">'
+    + '<span class="lbl">Statut</span>'
+    + '<span class="val" style="color:#e85d26;">🟠 Active</span>'
+    + '</div>'
+    + '<div class="popup-row" style="margin-top:6px;padding-top:6px;border-top:1px solid #1e2733;">'
+    + '<span class="lbl">MAJ</span>'
+    + '<span class="val" style="font-size:10px;color:#6a7a8a;">' + heure + ' — source CII/GoAlert</span>'
+    + '</div>'
+    + '</div>';
+}
+
+// ── Fetch + rendu ─────────────────────────────────────────────────────────────
+function fetchWFSVigies() {
+  fetch(WFS_VIGIE_URL)
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      if (!data || !Array.isArray(data.liste)) {
+        console.warn('[WFS Vigies] Structure inattendue:', data);
+        return;
+      }
+
+      if (wfsVigiesLayer) {
+        wfsVigiesLayer.clearLayers();
+      } else {
+        wfsVigiesLayer = L.layerGroup().addTo(map);
+      }
+
+      wfsVigiesLastMAJ = new Date().toTimeString().slice(0, 5);
+
+      var nbVigies = 0;
+
+      data.liste.forEach(function(entry) {
+        if (entry.vigie_active !== '1') return;
+
+        // Jointure commune_nom puis fallback commune_insee
+        var commune = null;
+        var nomLower = entry.commune_nom.toLowerCase();
+        for (var i = 0; i < COMMUNES_VAR.length; i++) {
+          if (COMMUNES_VAR[i].nom.toLowerCase() === nomLower) {
+            commune = COMMUNES_VAR[i];
+            break;
+          }
+        }
+        if (!commune && entry.commune_insee) {
+          for (var j = 0; j < COMMUNES_VAR.length; j++) {
+            if (COMMUNES_VAR[j].insee === entry.commune_insee) {
+              commune = COMMUNES_VAR[j];
+              break;
+            }
+          }
+        }
+
+        if (!commune) {
+          console.warn('[WFS Vigies] Commune non trouvée:', entry.commune_nom, entry.commune_insee);
+          return;
+        }
+
+        nbVigies++;
+        var mkr = L.marker([commune.lat, commune.lon], {
+          icon:         makeWFSVigieIcon(),
+          zIndexOffset: 650
+        });
+        mkr.bindPopup(buildWFSVigiePopup(entry), {
+          className: 'custom-popup',
+          maxWidth:  240
+        });
+        mkr.addTo(wfsVigiesLayer);
+      });
+
+      // Mettre à jour le bouton
+      var btn = document.getElementById('btn-wfs-vigie');
+      if (btn) {
+        btn.innerHTML = '🔭 Vigies CII (' + nbVigies + ')';
+        btn.title     = nbVigies + ' vigie(s) active(s) — MAJ ' + wfsVigiesLastMAJ;
+      }
+
+      console.log('[WFS Vigies] Chargées :', nbVigies);
+    })
+    .catch(function(err) {
+      console.warn('[WFS Vigies] Fetch erreur:', err.message);
+      var btn = document.getElementById('btn-wfs-vigie');
+      if (btn && wfsVigiesVisible) btn.title = 'Erreur — ' + err.message;
+    });
+}
+
+// ── Toggle ────────────────────────────────────────────────────────────────────
+function toggleWFSVigies() {
+  var btn = document.getElementById('btn-wfs-vigie');
+  if (wfsVigiesVisible) {
+    if (wfsVigiesLayer) {
+      wfsVigiesLayer.clearLayers();
+      map.removeLayer(wfsVigiesLayer);
+      wfsVigiesLayer = null;
+    }
+    if (wfsVigiesTimer) { clearInterval(wfsVigiesTimer); wfsVigiesTimer = null; }
+    wfsVigiesVisible = false;
+    if (btn) { btn.classList.remove('active'); btn.innerHTML = '🔭 Vigies live (CII)'; btn.title = ''; }
+  } else {
+    wfsVigiesVisible = true;
+    wfsVigiesLayer   = L.layerGroup().addTo(map);
+    if (btn) { btn.classList.add('active'); btn.innerHTML = '🔭 Chargement…'; }
+    fetchWFSVigies();
+    wfsVigiesTimer = setInterval(fetchWFSVigies, 60000);
+  }
 }
 
 // Traccar supprimé — remplacé par MyFleet24
