@@ -1198,9 +1198,9 @@
       <button class="layer-btn" id="btn-vigies-visu" onclick="toggleVisuVigies()" style="display:none;">👁 Cercles de visu</button>
       <div style="border-top:1px solid #2a3040;margin:4px 0;"></div>
       <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;color:#4caf50;letter-spacing:1px;padding:2px 4px 4px;">PATROUILLES LIVE</div>
-      <button class="layer-btn wms-cii disabled" id="btn-wms-patrouille" title="En cours d'investigation — données non fiables">🚶 Patrouilles actives</button>
-      <button class="layer-btn wms-cii disabled" id="btn-wms-patrouille-txt" title="En cours d'investigation — données non fiables">📋 Détail patrouilles</button>
-      <button class="layer-btn wms-cii disabled" id="btn-wms-vigie" title="En cours d'investigation — données non fiables">🔭 Vigies live (CII)</button>
+      <button class="layer-btn" id="btn-wfs-patrouille" onclick="toggleWFSPatrouilles()">🚶 Patrouilles actives</button>
+      <button class="layer-btn wms-cii disabled" id="btn-wms-patrouille-txt" title="Fonctionnalité réservée — v2">📋 Détail patrouilles</button>
+      <button class="layer-btn wms-cii disabled" id="btn-wms-vigie" title="En attente structure données CII">🔭 Vigies live (CII)</button>
     </div>
 
     <!-- Cadres Incidents — zone DEMO -->
@@ -3102,60 +3102,237 @@ window.addEventListener('load', function() {
 })();
 
 
-// --- COUCHES WMS CII TÉLÉCOM — Patrouilles & Vigies live --------------------
-var WMS_BASE = 'https://carto.tre.telealerte.net/mapserver/18712001/wms-admin/';
+// ══════════════════════════════════════════════════════════════════════════════
+// MODULE WFS PATROUILLES CII — Données live depuis telealerte.net
+// URL : https://carto.tre.telealerte.net/mapserver/18712001/wms-wfs/
+//       ?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=info_patrouille&OUTPUTFORMAT=geojson
+//
+// Structure JSON retournée (custom, pas GeoJSON standard) :
+//   { "type": "patrouille", "liste": [ { id, commune_insee, commune_nom,
+//     patrouilles_actives, patrouille_1_active … patrouille_9_active }, … ] }
+//
+// Logique : jointure locale commune_nom → COMMUNES_VAR pour obtenir lat/lon.
+// Un marqueur par commune avec badge du nombre de patrouilles actives.
+// Popup : liste des numéros actifs (P1, P3, etc.)
+// Rafraîchissement : toutes les 60 secondes quand la couche est active.
+// ══════════════════════════════════════════════════════════════════════════════
 
-var wmsLayers = {
-  patrouille:     null,
-  patrouille_txt: null,
-  vigie:          null
-};
-var wmsVisible = {
-  patrouille:     false,
-  patrouille_txt: false,
-  vigie:          false
-};
+var WFS_PATROUILLE_URL = 'https://carto.tre.telealerte.net/mapserver/18712001/wms-wfs/'
+  + '?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=info_patrouille&OUTPUTFORMAT=geojson';
 
-var WMS_CONFIG = {
-  patrouille:     { layer: 'info_patrouille',     btn: 'btn-wms-patrouille',     label: 'Patrouilles actives' },
-  patrouille_txt: { layer: 'info_patrouille_txt', btn: 'btn-wms-patrouille-txt', label: 'Détail patrouilles' },
-  vigie:          { layer: 'info_vigie',           btn: 'btn-wms-vigie',          label: 'Vigies live (CII)' }
-};
+var wfsPatrouillesVisible = false;
+var wfsPatrouillesLayer   = null;   // L.layerGroup contenant tous les marqueurs
+var wfsPatrouillesTimer   = null;   // setInterval de rafraîchissement
+var wfsPatrouillesLastMAJ = null;   // heure dernière mise à jour (affichage)
 
-function toggleWMS(key) {
-  var cfg = WMS_CONFIG[key];
-  var btn = document.getElementById(cfg.btn);
-  if (wmsVisible[key]) {
-    // Masquer
-    if (wmsLayers[key]) { map.removeLayer(wmsLayers[key]); wmsLayers[key] = null; }
-    wmsVisible[key] = false;
-    if (btn) btn.classList.remove('active');
-  } else {
-    // Afficher
-    wmsLayers[key] = L.tileLayer.wms(WMS_BASE, {
-      layers:      cfg.layer,
-      format:      'image/png',
-      transparent: true,
-      version:     '1.3.0',
-      opacity:     0.9
+// ── Icône marqueur patrouille — disque vert avec badge nombre ─────────────────
+function makeWFSPatrouilleIcon(nbActives) {
+  var badge = nbActives > 1
+    ? '<div style="position:absolute;top:-5px;right:-7px;min-width:16px;height:16px;'
+      + 'border-radius:8px;background:#e85d26;border:1.5px solid #fff;'
+      + 'font-size:9px;font-weight:700;color:#fff;font-family:Arial,sans-serif;'
+      + 'display:flex;align-items:center;justify-content:center;padding:0 3px;">'
+      + nbActives + '</div>'
+    : '';
+  var html =
+    '<div style="position:relative;display:inline-block;">'
+    + '<div style="width:34px;height:34px;background:#1e4d1e;border:2.5px solid #4caf50;'
+    + 'border-radius:50%;display:flex;align-items:center;justify-content:center;'
+    + 'font-size:16px;box-shadow:0 2px 8px rgba(0,0,0,0.55),0 0 0 3px #4caf5033;">🚶</div>'
+    + badge
+    + '</div>';
+  return L.divIcon({
+    html: html,
+    className: '',
+    iconSize:   [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor:[0, -20]
+  });
+}
+
+// ── Construire le popup d'une commune ─────────────────────────────────────────
+function buildWFSPatrouillePopup(entry) {
+  var actives = [];
+  for (var i = 1; i <= 9; i++) {
+    if (entry['patrouille_' + i + '_active'] === '1') {
+      actives.push('P' + i);
+    }
+  }
+  var nbActives  = parseInt(entry.patrouilles_actives) || actives.length;
+  var listeHTML  = actives.map(function(p) {
+    return '<span style="display:inline-block;background:#1a3a1a;border:1px solid #4caf50;'
+         + 'border-radius:3px;padding:1px 7px;font-weight:700;color:#4caf50;'
+         + 'font-family:\'Barlow Condensed\',sans-serif;font-size:13px;margin:2px;">' + p + '</span>';
+  }).join('');
+  var heure = wfsPatrouillesLastMAJ || '--:--';
+
+  return '<div class="popup-inner" style="min-width:220px;">'
+    + '<div class="popup-header">'
+    + '<div class="popup-icon" style="background:#1a3a1a;font-size:18px;">🚶</div>'
+    + '<div>'
+    + '<div class="popup-title" style="color:#4caf50;">' + entry.commune_nom + '</div>'
+    + '<div class="popup-sub">Patrouilles CCFF — INSEE ' + entry.commune_insee + '</div>'
+    + '</div></div>'
+    + '<div class="popup-row">'
+    + '<span class="lbl">Actives</span>'
+    + '<span class="val green">' + nbActives + ' patrouille' + (nbActives > 1 ? 's' : '') + '</span>'
+    + '</div>'
+    + '<div style="margin:6px 0 4px;">' + listeHTML + '</div>'
+    + '<div class="popup-row" style="margin-top:6px;padding-top:6px;border-top:1px solid #1e2733;">'
+    + '<span class="lbl">MAJ</span>'
+    + '<span class="val" style="font-size:10px;color:#6a7a8a;">' + heure + ' — source CII/GoAlert</span>'
+    + '</div>'
+    + '</div>';
+}
+
+// ── Fetch + rendu des marqueurs ───────────────────────────────────────────────
+function fetchWFSPatrouilles() {
+  fetch(WFS_PATROUILLE_URL)
+    .then(function(r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      if (!data || !Array.isArray(data.liste)) {
+        console.warn('[WFS] Structure inattendue:', data);
+        return;
+      }
+
+      // Effacer les anciens marqueurs
+      if (wfsPatrouillesLayer) {
+        wfsPatrouillesLayer.clearLayers();
+      } else {
+        wfsPatrouillesLayer = L.layerGroup().addTo(map);
+      }
+
+      // Heure MAJ
+      wfsPatrouillesLastMAJ = new Date().toTimeString().slice(0, 5);
+
+      // Compteurs pour le label du bouton
+      var nbCommunes    = 0;
+      var nbPatrouilles = 0;
+
+      data.liste.forEach(function(entry) {
+        var nb = parseInt(entry.patrouilles_actives) || 0;
+        if (nb === 0) return;  // commune inactive — pas de marqueur
+
+        // Jointure sur commune_nom dans COMMUNES_VAR
+        var commune = null;
+        // 1er essai : correspondance exacte insensible à la casse
+        var nomLower = entry.commune_nom.toLowerCase();
+        for (var i = 0; i < COMMUNES_VAR.length; i++) {
+          if (COMMUNES_VAR[i].nom.toLowerCase() === nomLower) {
+            commune = COMMUNES_VAR[i];
+            break;
+          }
+        }
+        // 2ème essai : correspondance par code INSEE
+        if (!commune && entry.commune_insee) {
+          for (var j = 0; j < COMMUNES_VAR.length; j++) {
+            if (COMMUNES_VAR[j].insee === entry.commune_insee) {
+              commune = COMMUNES_VAR[j];
+              break;
+            }
+          }
+        }
+
+        if (!commune) {
+          console.warn('[WFS] Commune non trouvée dans COMMUNES_VAR:', entry.commune_nom, entry.commune_insee);
+          return;
+        }
+
+        nbCommunes++;
+        nbPatrouilles += nb;
+
+        var mkr = L.marker([commune.lat, commune.lon], {
+          icon:        makeWFSPatrouilleIcon(nb),
+          zIndexOffset: 600
+        });
+        mkr.bindPopup(buildWFSPatrouillePopup(entry), {
+          className: 'custom-popup',
+          maxWidth:  260
+        });
+        mkr.addTo(wfsPatrouillesLayer);
+      });
+
+      // Mettre à jour le titre du bouton avec les compteurs
+      var btn = document.getElementById('btn-wfs-patrouille');
+      if (btn) {
+        btn.innerHTML = '🚶 Patrouilles (' + nbPatrouilles + '/' + nbCommunes + ')';
+        btn.title     = nbPatrouilles + ' patrouille(s) active(s) sur ' + nbCommunes + ' commune(s) — MAJ ' + wfsPatrouillesLastMAJ;
+      }
+
+      // Mettre à jour l'alert-bar si couche active
+      if (wfsPatrouillesVisible) {
+        var bar = document.getElementById('alert-bar');
+        if (bar) {
+          bar.innerHTML = '🚶 ' + nbPatrouilles + ' patrouille(s) CCFF active(s) sur '
+            + nbCommunes + ' commune(s) — source CII/GoAlert — MAJ ' + wfsPatrouillesLastMAJ;
+          bar.style.borderColor = '#4caf50';
+          bar.style.color       = '#4caf50';
+          bar.style.background  = 'rgba(76,175,80,0.1)';
+        }
+      }
+
+      console.log('[WFS] Patrouilles chargées :', nbPatrouilles, 'sur', nbCommunes, 'communes');
+    })
+    .catch(function(err) {
+      console.warn('[WFS] Fetch patrouilles erreur:', err.message);
+      // En cas d'erreur réseau : laisser les marqueurs existants, signaler en bouton
+      var btn = document.getElementById('btn-wfs-patrouille');
+      if (btn && wfsPatrouillesVisible) {
+        btn.title = 'Erreur de chargement — ' + err.message;
+      }
     });
-    wmsLayers[key].addTo(map);
-    wmsVisible[key] = true;
-    if (btn) btn.classList.add('active');
+}
 
-    // Programmer le refresh toutes les 300s
-    wmsLayers[key]._refreshTimer = setInterval(function() {
-      if (!wmsVisible[key]) return;
-      map.removeLayer(wmsLayers[key]);
-      wmsLayers[key] = L.tileLayer.wms(WMS_BASE, {
-        layers: cfg.layer, format: 'image/png',
-        transparent: true, version: '1.3.0', opacity: 0.9
-      }).addTo(map);
-    }, 300000);
+// ── Toggle activation/désactivation de la couche ─────────────────────────────
+function toggleWFSPatrouilles() {
+  var btn = document.getElementById('btn-wfs-patrouille');
+  if (wfsPatrouillesVisible) {
+    // Désactiver
+    if (wfsPatrouillesLayer) {
+      wfsPatrouillesLayer.clearLayers();
+      map.removeLayer(wfsPatrouillesLayer);
+      wfsPatrouillesLayer = null;
+    }
+    if (wfsPatrouillesTimer) {
+      clearInterval(wfsPatrouillesTimer);
+      wfsPatrouillesTimer = null;
+    }
+    wfsPatrouillesVisible = false;
+    if (btn) {
+      btn.classList.remove('active');
+      btn.innerHTML = '🚶 Patrouilles actives';
+      btn.title     = '';
+    }
+    // Restaurer l'alert-bar
+    var bar = document.getElementById('alert-bar');
+    if (bar) {
+      bar.innerHTML = '⚡ PROTOTYPE - Positions simulées - Rafraîchissement : 30s';
+      bar.style.borderColor = '#e85d26';
+      bar.style.color       = '#e85d26';
+      bar.style.background  = 'rgba(232,93,38,0.15)';
+    }
+  } else {
+    // Activer
+    wfsPatrouillesVisible = true;
+    wfsPatrouillesLayer   = L.layerGroup().addTo(map);
+    if (btn) {
+      btn.classList.add('active');
+      btn.innerHTML = '🚶 Chargement…';
+    }
+    // Premier fetch immédiat
+    fetchWFSPatrouilles();
+    // Rafraîchissement toutes les 60s
+    wfsPatrouillesTimer = setInterval(fetchWFSPatrouilles, 60000);
   }
 }
 
-// Nettoyer les timers WMS si la couche est retirée
+// ── WMS legacy — conservé pour compatibilité boutons désactivés ───────────────
+var wmsLayers  = { patrouille: null, patrouille_txt: null, vigie: null };
+var wmsVisible = { patrouille: false, patrouille_txt: false, vigie: false };
+function toggleWMS(key) { /* désactivé — couches remplacées par WFS */ }
 function clearWMSTimers() {
   Object.keys(wmsLayers).forEach(function(key) {
     if (wmsLayers[key] && wmsLayers[key]._refreshTimer) {
