@@ -3117,8 +3117,9 @@ window.addEventListener('load', function() {
 // Rafraîchissement : toutes les 60 secondes quand la couche est active.
 // ══════════════════════════════════════════════════════════════════════════════
 
-var WFS_PATROUILLE_URL = 'https://carto.tre.telealerte.net/mapserver/18712001/wms-wfs/'
-  + '?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=info_patrouille&OUTPUTFORMAT=geojson';
+// Proxy CORS local — lancer proxy_patrouilles.py avant d'ouvrir la carte
+// (le navigateur ne peut pas appeler telealerte.net directement — CORS)
+var WFS_PATROUILLE_URL = 'http://localhost:8766/patrouilles';
 
 var wfsPatrouillesVisible = false;
 var wfsPatrouillesLayer   = null;   // L.layerGroup contenant tous les marqueurs
