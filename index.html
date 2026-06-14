@@ -3238,26 +3238,32 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // Handler délégué pour les boutons tactiques dans les popups DFCI
+  // CAPTURE=true : s'exécute AVANT Leaflet qui fermerait le popup sur mousedown
   document.addEventListener('mousedown', function(e) {
-    if (e.button !== 0) return; // seulement clic gauche
+    if (e.button !== 0) return;
     var btn = e.target.closest('.tactique-btn[data-type]');
     if (!btn) return;
     var container = btn.closest('.tactique-btns');
     if (!container) return;
+    // Lire toutes les données AVANT que Leaflet ferme le popup
     var lat  = parseFloat(container.getAttribute('data-lat'));
     var lon  = parseFloat(container.getAttribute('data-lon'));
     var dfci = container.getAttribute('data-dfci');
+    var comm = container.getAttribute('data-commune') || '';
     var type = btn.getAttribute('data-type');
+    // Empêcher Leaflet de fermer le popup avant qu'on ait terminé
+    e.stopPropagation();
+    e.preventDefault();
     if (type === 'transit' || type === 'engagement') {
-      e.preventDefault();
       initRotationMode(type, lat, lon, dfci, container, btn);
     } else if (type === 'propagation') {
-      e.preventDefault();
       initPropagationMode(lat, lon, dfci, container, btn);
     } else {
+      // Fermer le popup manuellement après avoir lu les données
+      setTimeout(function() { map.closePopup(); }, 10);
       deposerMarqueur(type, lat, lon, dfci, container);
     }
-  });
+  }, true);  // true = capture phase — avant Leaflet
   document.addEventListener('click', function(e) {
     // Effacer groupe
     var btnG = e.target.closest('.btn-suppr-groupe');
@@ -4015,6 +4021,8 @@ function sdpSearchAddr() {
     ignR.forEach(function(f) {
       if (!f.geometry) return;
       var lt = f.geometry.coordinates[1], ln = f.geometry.coordinates[0];
+      // Filtrage strict bbox
+      if (lt < bboxMinLat || lt > bboxMaxLat || ln < bboxMinLon || ln > bboxMaxLon) return;
       if (all.some(function(a){return Math.abs(a.lat-lt)<0.001 && Math.abs(a.lon-ln)<0.001;})) return;
       var p = f.properties;
       all.push({
@@ -4027,6 +4035,8 @@ function sdpSearchAddr() {
 
     nomR.forEach(function(r) {
       var lt = parseFloat(r.lat), ln = parseFloat(r.lon);
+      // Filtrage strict bbox : rejeter tout résultat hors de la zone cible
+      if (lt < bboxMinLat || lt > bboxMaxLat || ln < bboxMinLon || ln > bboxMaxLon) return;
       if (all.some(function(a){return Math.abs(a.lat-lt)<0.002 && Math.abs(a.lon-ln)<0.002;})) return;
       var pts = r.display_name.split(',');
       all.push({
