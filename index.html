@@ -1025,10 +1025,11 @@
   #search-detail-panel {
     display: none;
     position: fixed;
-    top: 12px;
+    top: 102px;
     left: 170px;
     width: 310px;
     z-index: 950;
+    cursor: default;
     background: #13181f;
     border: 1px solid #2a3a55;
     border-radius: 10px;
@@ -1044,7 +1045,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    cursor: grab;
+    user-select: none;
   }
+  #sdp-header:active { cursor: grabbing; }
   #sdp-title {
     font-family: 'Barlow Condensed', sans-serif;
     font-size: 14px;
@@ -3762,6 +3766,58 @@ function sdpGoToResult(item, dfciCode) {
 
   sdpMarkers.push(window._sdpLastMarker);
 }
+
+
+// ── DRAG & DROP panneau recherche détaillée ───────────────────────────────────
+(function() {
+  var panel, isDragging = false, startX, startY, origLeft, origTop;
+
+  function initDrag() {
+    panel = document.getElementById('search-detail-panel');
+    var header = document.getElementById('sdp-header');
+    if (!panel || !header) return;
+
+    header.addEventListener('mousedown', function(e) {
+      // Ne pas déclencher si clic sur le bouton fermer
+      if (e.target.id === 'sdp-close' || e.target.closest('#sdp-close')) return;
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      var rect = panel.getBoundingClientRect();
+      origLeft = rect.left;
+      origTop  = rect.top;
+      header.style.cursor = 'grabbing';
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (!isDragging) return;
+      var dx = e.clientX - startX;
+      var dy = e.clientY - startY;
+      var newLeft = origLeft + dx;
+      var newTop  = origTop  + dy;
+      // Garder dans les limites de la fenêtre
+      newLeft = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  newLeft));
+      newTop  = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, newTop));
+      panel.style.left = newLeft + 'px';
+      panel.style.top  = newTop  + 'px';
+    });
+
+    document.addEventListener('mouseup', function() {
+      if (!isDragging) return;
+      isDragging = false;
+      var header = document.getElementById('sdp-header');
+      if (header) header.style.cursor = 'grab';
+    });
+  }
+
+  // Initialiser après chargement de la page
+  if (document.readyState === 'complete') {
+    initDrag();
+  } else {
+    window.addEventListener('load', initDrag);
+  }
+})();
 
 </script>
 
