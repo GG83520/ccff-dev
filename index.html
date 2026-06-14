@@ -2904,6 +2904,18 @@ function supprimerGroupe(type, slot) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
+  // Handler bouton Slot libre + clic droit code DFCI (module recherche détaillée)
+  document.addEventListener('click', function(e) {
+    var btnSend = e.target.closest('.sdp-send-dfci');
+    if (btnSend) { sdpEnvoyerDFCI(btnSend.getAttribute('data-code')); return; }
+  });
+  document.addEventListener('contextmenu', function(e) {
+    var span = e.target.closest('.sdp-dfci-code');
+    if (!span) return;
+    e.preventDefault();
+    sdpEnvoyerDFCI(span.getAttribute('data-code'));
+  });
+
   // Handler délégué pour les boutons tactiques dans les popups DFCI
   document.addEventListener('click', function(e) {
     // Dépôt marqueur tactique
@@ -3600,50 +3612,52 @@ function sdpSearchAddr() {
   if (!val) return;
   var results = document.getElementById('sdp-results');
   results.innerHTML = '<div class="sdp-loading"><span class="dfci-spinner" style="display:inline-block;vertical-align:middle;margin-right:6px"></span>Recherche...</div>';
-  var commune = sdpCommuneSelect ? sdpCommuneSelect.nom : '';
-  var queryFull = commune ? (val+' '+commune+' Var France') : (val+' Var France');
 
-  // Bbox Var strict (toujours appliquée si pas de commune)
-  // Avec commune : bbox ~10km autour du centre
   var VAR_BBOX = {minLon:5.67, minLat:42.98, maxLon:7.72, maxLat:43.93};
-  var clat = sdpCommuneSelect ? sdpCommuneSelect.lat : 43.4;
-  var clon = sdpCommuneSelect ? sdpCommuneSelect.lon : 6.2;
-  var dd   = sdpCommuneSelect ? 0.10 : 999; // 999 = pas de restriction sup à la bbox Var
+  var commune  = sdpCommuneSelect ? sdpCommuneSelect.nom : '';
+  var clat     = sdpCommuneSelect ? sdpCommuneSelect.lat : 43.4;
+  var clon     = sdpCommuneSelect ? sdpCommuneSelect.lon : 6.2;
+
+  // Avec commune : bbox ±6km (0.06° lat/lon ≈ 5-6km dans le Var)
+  var dd = 0.06;
   var bboxMinLon = sdpCommuneSelect ? Math.max(clon-dd, VAR_BBOX.minLon) : VAR_BBOX.minLon;
   var bboxMinLat = sdpCommuneSelect ? Math.max(clat-dd, VAR_BBOX.minLat) : VAR_BBOX.minLat;
   var bboxMaxLon = sdpCommuneSelect ? Math.min(clon+dd, VAR_BBOX.maxLon) : VAR_BBOX.maxLon;
   var bboxMaxLat = sdpCommuneSelect ? Math.min(clat+dd, VAR_BBOX.maxLat) : VAR_BBOX.maxLat;
 
-  // Source 1 : BAN — citycode si commune selectionnee (filtre strict commune)
-  var banBase = 'https://api-adresse.data.gouv.fr/search/?q='
-    + encodeURIComponent(val) + '&limit=8&autocomplete=0';
+  // ── Source 1 : BAN ── citycode strict si commune connue ──────────────────
   var banUrl;
   if (sdpCommuneSelect && sdpCommuneSelect.insee) {
-    // Filtre strict commune via code INSEE = uniquement les adresses de la commune
-    banUrl = banBase + '&citycode=' + sdpCommuneSelect.insee;
+    banUrl = 'https://api-adresse.data.gouv.fr/search/?q='
+      + encodeURIComponent(val) + '&limit=8&autocomplete=0'
+      + '&citycode=' + sdpCommuneSelect.insee;
   } else if (sdpCommuneSelect) {
-    // Code INSEE pas encore charge : filtre par lat/lon proche
-    banUrl = banBase + '&lat=' + clat + '&lon=' + clon;
+    // INSEE pas encore chargé — filtre lat/lon serré
+    banUrl = 'https://api-adresse.data.gouv.fr/search/?q='
+      + encodeURIComponent(val) + '&limit=8&autocomplete=0'
+      + '&lat=' + clat + '&lon=' + clon;
   } else {
-    // Pas de commune : forcer le Var via " 83"
     banUrl = 'https://api-adresse.data.gouv.fr/search/?q='
       + encodeURIComponent(val + ' 83') + '&limit=5&autocomplete=0'
       + '&lat=43.4&lon=6.2';
   }
-  var banUrlFinal = banUrl;
 
-  // Source 2 : IGN Géoplateforme — bbox stricte autour commune ou bbox Var
+  // ── Source 2 : IGN — toponymies SCAN25, bbox stricte ─────────────────────
+  // Requête sans le nom commune pour éviter la dérive géographique
   var ignUrl = 'https://data.geopf.fr/geocodage/search?q='
-    + encodeURIComponent(commune ? val + ' ' + commune : val)
+    + encodeURIComponent(val)
     + '&index=PositionOfInterest&limit=8'
     + '&bbox=' + bboxMinLon + ',' + bboxMinLat + ',' + bboxMaxLon + ',' + bboxMaxLat;
 
-  // Source 3 : Nominatim — viewbox Var strict, bounded=1 interdit les résultats hors zone
+  // ── Source 3 : Nominatim — bounded strict ────────────────────────────────
   var nomViewbox = sdpCommuneSelect
     ? (bboxMinLon+','+bboxMaxLat+','+bboxMaxLon+','+bboxMinLat)
     : (VAR_BBOX.minLon+','+VAR_BBOX.maxLat+','+VAR_BBOX.maxLon+','+VAR_BBOX.minLat);
+  var nomQuery = sdpCommuneSelect
+    ? val + ' ' + commune         // avec commune → plus précis
+    : val + ' Var';
   var nomUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=4'
-    + '&q=' + encodeURIComponent(commune ? val + ' ' + commune : val + ' Var')
+    + '&q=' + encodeURIComponent(nomQuery)
     + '&viewbox=' + nomViewbox + '&bounded=1&accept-language=fr';
 
   var done = 0;
@@ -3747,24 +3761,72 @@ function sdpClearAddr() {
 }
 
 function sdpGoToResult(item, dfciCode) {
-  // Retirer l'ancien marqueur de résultat
   if (window._sdpLastMarker) map.removeLayer(window._sdpLastMarker);
-
   map.setView([item.lat, item.lon], 16);
 
-  var popupHtml = '<div class="popup-inner" style="min-width:200px;">'
+  var dfciBlock = '';
+  if (dfciCode) {
+    dfciBlock = '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #2a3040;">'
+      + '<div style="font-size:11px;color:#6a7a8a;margin-bottom:3px;">Code DFCI</div>'
+      + '<div style="display:flex;align-items:center;gap:8px;">'
+      + '<span class="sdp-dfci-code" data-code="' + dfciCode + '" '
+      + 'title="Clic droit pour envoyer dans un slot libre (S1-S4)" '
+      + 'style="font-size:15px;font-weight:700;color:#e8a020;cursor:context-menu;'
+      + 'font-family:Barlow Condensed,sans-serif;letter-spacing:1px;">' + dfciCode + '</span>'
+      + '<button class="sdp-send-dfci" data-code="' + dfciCode + '" '
+      + 'title="Envoyer dans le premier slot libre S1 a S4" '
+      + 'style="background:#1a2535;border:1px solid #4a7ab0;border-radius:4px;'
+      + 'color:#7ab3f0;font-family:Barlow Condensed,sans-serif;font-size:11px;'
+      + 'padding:2px 8px;cursor:pointer;white-space:nowrap;">'
+      + '\u2192 Slot libre</button>'
+      + '</div>'
+      + '<div style="font-size:10px;color:#4a5a6a;margin-top:3px;">'
+      + 'Clic bouton ou clic droit sur le code</div>'
+      + '</div>';
+  }
+
+  var popupHtml = '<div class="popup-inner" style="min-width:220px;">'
     + '<b style="color:#e8a020;font-family:Barlow Condensed,sans-serif;font-size:15px;">' + item.name + '</b>';
   if (item.sub) popupHtml += '<div style="font-size:11px;color:#6a7a8a;margin-top:2px;">' + item.sub + '</div>';
-  if (dfciCode) popupHtml += '<div style="font-size:13px;color:#7ab3f0;margin-top:4px;font-family:Barlow Condensed,sans-serif;">📐 ' + dfciCode + '</div>';
-  popupHtml += '</div>';
+  popupHtml += dfciBlock + '</div>';
 
   window._sdpLastMarker = L.circleMarker([item.lat, item.lon], {
     radius: 9, color: '#e85d26', fillColor: '#ff8c00', fillOpacity: 0.9, weight: 2
-  }).bindPopup(popupHtml, {className: 'custom-popup', maxWidth: 250})
+  }).bindPopup(popupHtml, {className: 'custom-popup', maxWidth: 260})
     .addTo(map)
     .openPopup();
 
   sdpMarkers.push(window._sdpLastMarker);
+}
+
+// Envoyer un code DFCI dans le premier slot libre S1-S4
+function sdpEnvoyerDFCI(code) {
+  var slots = [1, 2, 3, 4];
+  var target = null;
+  for (var i = 0; i < slots.length; i++) {
+    var n = slots[i];
+    var inp = document.getElementById('dfci-input-' + n);
+    if (inp && (!inp.value.trim() || !dfciState[n].highlight)) {
+      target = n;
+      break;
+    }
+  }
+  if (target === null) target = 1; // tous occupés → S1
+  var inp = document.getElementById('dfci-input-' + target);
+  if (inp) {
+    inp.value = code;
+    dfciSearch(target);
+    map.closePopup();
+    // Flash visuel sur le label du slot
+    var label = document.querySelector('.dfci-search-label.s' + target);
+    if (label) {
+      var orig = label.style.background;
+      var origC = label.style.color;
+      label.style.background = '#e85d26';
+      label.style.color = '#fff';
+      setTimeout(function() { label.style.background = orig; label.style.color = origC; }, 900);
+    }
+  }
 }
 
 
