@@ -3154,20 +3154,42 @@ function _finaliserPropagation(fromLat, fromLon, toLat, toLon, dfci, container, 
     + '&#10005;&#10005; Effacer groupe</button>'
     + '</div></div>';
 
+  // ID unique pour la suppression
+  var mkrId = Date.now() + Math.random();
+
+  // Badge slot : petit label au-dessus de l'origine de la flèche
+  var slotColor = slot && COULEURS[slot] ? COULEURS[slot].fill : '#ffffff';
+  var badgeHtml = slot
+    ? '<div style="background:' + slotColor + ';color:#fff;border:1.5px solid #fff;'
+      + 'border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:700;'
+      + 'display:flex;align-items:center;justify-content:center;font-family:Arial;">'
+      + slot + '</div>'
+    : '';
+  var badgeMkr = L.marker([fromLat, fromLon], {
+    icon: L.divIcon({ html: badgeHtml, className:'', iconSize:[16,16], iconAnchor:[8,20] }),
+    interactive: false, zIndexOffset: 850
+  }).addTo(map);
+
+  // Injecter mkrId dans le bouton Supprimer du popup
+  var popupFinal = popupHtml.replace(
+    'onclick="supprimerMarqueur(this)"',
+    'onclick="supprimerMarqueur(this)" data-mkrid="' + mkrId + '"'
+  );
+
   // Flèche définitive
   var arrow = _drawArrow([fromLat,fromLon], [toLat,toLon], '#cc0000', false);
 
   // Ajouter popup sur le clic de la flèche
   arrow.eachLayer(function(layer) {
-    layer.bindPopup(popupHtml, { className:'custom-popup', maxWidth:240 });
+    layer.bindPopup(popupFinal, { className:'custom-popup', maxWidth:240 });
     layer.on('click', function() { layer.openPopup(); });
   });
 
-  // Stocker pour suppression
-  var mkrId = Date.now() + Math.random();
+  // Stocker badge + flèche ensemble pour suppression
   arrow._tactiqueId   = mkrId;
   arrow._tactiqueType = 'propagation';
   arrow._tactiqueSlot = slot;
+  arrow._badgeMkr     = badgeMkr;  // référence pour suppression groupée
 
   if (slot) {
     marqueursSlot[slot].propagation.push(arrow);
@@ -3186,6 +3208,7 @@ function supprimerMarqueur(btn) {
     if (!marqueursSlot[s] || !marqueursSlot[s][type]) return;
     marqueursSlot[s][type] = marqueursSlot[s][type].filter(function(mkr) {
       if (mkr._tactiqueId === mkrId) {
+        if (mkr._badgeMkr) map.removeLayer(mkr._badgeMkr);
         if (mkr.eachLayer) { mkr.eachLayer(function(l){ map.removeLayer(l); }); }
         map.removeLayer(mkr);
         return false;
@@ -3214,6 +3237,7 @@ function supprimerGroupe(type, slot) {
     if (marqueursSlot[s] && marqueursSlot[s][type]) {
       console.log('[SuppGroupe] slot ' + s + ' -> ' + marqueursSlot[s][type].length + ' marqueur(s)');
       marqueursSlot[s][type].forEach(function(mkr) {
+        if (mkr._badgeMkr) map.removeLayer(mkr._badgeMkr);
         if (mkr.eachLayer) { mkr.eachLayer(function(l){ map.removeLayer(l); }); }
         map.removeLayer(mkr);
       });
@@ -3947,6 +3971,25 @@ function sdpSearchAddr() {
   if (!val) return;
   var results = document.getElementById('sdp-results');
   results.innerHTML = '<div class="sdp-loading"><span class="dfci-spinner" style="display:inline-block;vertical-align:middle;margin-right:6px"></span>Recherche...</div>';
+
+  // Auto-sélection : si le champ commune a du texte mais sdpCommuneSelect est null
+  // → chercher une correspondance exacte dans COMMUNES_VAR
+  if (!sdpCommuneSelect) {
+    var cinp = document.getElementById('sdp-commune-input');
+    if (cinp && cinp.value.trim().length > 1) {
+      var val2 = cinp.value.trim().toLowerCase();
+      var found = COMMUNES_VAR.find(function(cm) {
+        return cm.nom.toLowerCase() === val2;
+      });
+      if (!found) found = COMMUNES_VAR.find(function(cm) {
+        return cm.nom.toLowerCase().indexOf(val2) === 0;
+      });
+      if (found) {
+        sdpSelectCommune(found);
+        // sdpCommuneSelect est maintenant défini
+      }
+    }
+  }
 
   var VAR_BBOX = {minLon:5.67, minLat:42.98, maxLon:7.72, maxLat:43.93};
   var commune  = sdpCommuneSelect ? sdpCommuneSelect.nom : '';
