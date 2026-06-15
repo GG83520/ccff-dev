@@ -2907,12 +2907,10 @@ function deposerMarqueur(type, lat, lon, dfciCode, container) {
   mkr._tacticCommune = communeNom;
 
   // Stocker la référence
-  if (slot) {
-    marqueursSlot[slot][type].push(mkr);
-  } else {
-    if (!marqueursSlot[0]) marqueursSlot[0] = { transit:[], engagement:[], codis:[], feu:[], harpon:[], propagation:[] };
-    marqueursSlot[0][type].push(mkr);
-  }
+  // Stocker toujours dans marqueursSlot (slot=0 si pas de slot actif)
+  if (!marqueursSlot[slot]) marqueursSlot[slot] = {};
+  if (!marqueursSlot[slot][type]) marqueursSlot[slot][type] = [];
+  marqueursSlot[slot][type].push(mkr);
 }
 // ══════════════════════════════════════════════════════════════════════════════
 // MODE ROTATION — Transit & Engagement
@@ -3091,10 +3089,10 @@ function _finaliserRotation(type, lat, lon, dfci, container, slot, col, def, sz,
     // slotActif sera restauré après la rotation (dragend de initRotationMode)
   });
 
-  if (slot) {
-    if (!marqueursSlot[slot][type]) marqueursSlot[slot][type] = [];
-    marqueursSlot[slot][type].push(mkr);
-  }
+  // Stocker même si slot=0 (sans slot actif)
+  if (!marqueursSlot[slot]) marqueursSlot[slot] = {};
+  if (!marqueursSlot[slot][type]) marqueursSlot[slot][type] = [];
+  marqueursSlot[slot][type].push(mkr);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -3279,11 +3277,10 @@ function _finaliserPropagation(fromLat, fromLon, toLat, toLon, dfci, container, 
   arrow._tactiqueSlot = slot;
   arrow._badgeMkr     = badgeMkr;  // référence pour suppression groupée
 
-  if (slot) {
-    marqueursSlot[slot].propagation.push(arrow);
-  } else {
-    marqueursSlot[0].propagation.push(arrow);
-  }
+  // Stocker toujours dans marqueursSlot (slot=0 si pas de slot actif)
+  if (!marqueursSlot[slot]) marqueursSlot[slot] = {};
+  if (!marqueursSlot[slot].propagation) marqueursSlot[slot].propagation = [];
+  marqueursSlot[slot].propagation.push(arrow);
 }
 
 function supprimerMarqueur(btn) {
