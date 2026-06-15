@@ -632,11 +632,11 @@ var COULEURS_COMMUNE = {
 };
 var MAX_MARQUEURS = 3; // max par type par slot
 var marqueursSlot = {
-  0: { transit:[], engagement:[], codis:[], feu:[], harpon:[] },
-  1: { transit:[], engagement:[], codis:[], feu:[], harpon:[] },
-  2: { transit:[], engagement:[], codis:[], feu:[], harpon:[] },
-  3: { transit:[], engagement:[], codis:[], feu:[], harpon:[] },
-  4: { transit:[], engagement:[], codis:[], feu:[], harpon:[] }
+  0: { transit:[], engagement:[], codis:[], feu:[], harpon:[], propagation:[] },
+  1: { transit:[], engagement:[], codis:[], feu:[], harpon:[], propagation:[] },
+  2: { transit:[], engagement:[], codis:[], feu:[], harpon:[], propagation:[] },
+  3: { transit:[], engagement:[], codis:[], feu:[], harpon:[], propagation:[] },
+  4: { transit:[], engagement:[], codis:[], feu:[], harpon:[], propagation:[] }
 };
 var slotActif = 1;
 var TACTIQUE_DEF = {
@@ -645,11 +645,11 @@ var TACTIQUE_DEF = {
   engagement: { label:"Point d’engagement", couleur:'#e74c3c', couleurBg:'#3a0a0a',
                 svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36"><polygon points="12,2 22,22 12,18 2,22" fill="#e74c3c" stroke="#fff" stroke-width="1.5"/><line x1="12" y1="18" x2="12" y2="34" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round"/></svg>' },
   codis:      { label:'PC CODIS',           couleur:'#8e44ad', couleurBg:'#2a0a40',
-                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 40" width="32" height="40"><circle cx="8" cy="5" r="4" fill="#8e44ad"/><circle cx="16" cy="5" r="4" fill="#8e44ad"/><circle cx="24" cy="5" r="4" fill="#8e44ad"/><rect x="2" y="10" width="28" height="18" rx="1" fill="none" stroke="#8e44ad" stroke-width="3"/><line x1="2" y1="28" x2="2" y2="38" stroke="#8e44ad" stroke-width="3" stroke-linecap="round"/></svg>' },
+                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 40" width="32" height="40"><circle cx="7"  cy="5" r="2.8" fill="#8e44ad"/><circle cx="13" cy="5" r="2.8" fill="#8e44ad"/><circle cx="19" cy="5" r="2.8" fill="#8e44ad"/><circle cx="25" cy="5" r="2.8" fill="#8e44ad"/><rect x="1" y="9" width="28" height="20" rx="0.5" fill="none" stroke="#8e44ad" stroke-width="2.5"/><line x1="1" y1="29" x2="1" y2="39" stroke="#8e44ad" stroke-width="2.5" stroke-linecap="round"/></svg>' },
   feu:        { label:'Départ de Feu',      couleur:'#e85d26', couleurBg:'#3a1500',
                 svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28"><polygon points="14,2 17,10 24,10 18,15 20,23 14,18 8,23 10,15 4,10 11,10" fill="#e85d26" stroke="#fff" stroke-width="1.5"/></svg>' },
   harpon:     { label:'HARPON',             couleur:'#ff6600', couleurBg:'#2a1500',
-                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 36" width="52" height="36"><ellipse cx="26" cy="32" rx="18" ry="3" fill="#33330033"/><rect x="5" y="14" width="42" height="14" rx="5" fill="#ff6600"/><rect x="12" y="7" width="22" height="14" rx="4" fill="#ff6600" stroke="#fff" stroke-width="0.8"/><rect x="14" y="8.5" width="8" height="9" rx="2" fill="#aaddff" opacity="0.75"/><rect x="24" y="8.5" width="8" height="9" rx="2" fill="#aaddff" opacity="0.75"/><rect x="5" y="18" width="42" height="4" fill="#ffcc00" opacity="0.9"/><rect x="5" y="22" width="42" height="2.5" fill="#222" opacity="0.5"/><rect x="33" y="8" width="13" height="9" rx="2" fill="#ff6600" stroke="#fff" stroke-width="0.6" opacity="0.85"/><ellipse cx="13" cy="28" rx="5" ry="4" fill="#1a1a1a"/><ellipse cx="13" cy="28" rx="2.5" ry="2" fill="#3a3a3a"/><ellipse cx="39" cy="28" rx="5" ry="4" fill="#1a1a1a"/><ellipse cx="39" cy="28" rx="2.5" ry="2" fill="#3a3a3a"/><rect x="4" y="16" width="4" height="8" rx="2" fill="#cc4400"/><path d="M5 19 l-3-2 l0 4 z" fill="#cc3300"/><path d="M46 19 l4 0" stroke="#888" stroke-width="1.5" stroke-linecap="round"/><circle cx="26" cy="10" r="4" fill="#ff6600" stroke="#fff" stroke-width="1"/><path d="M24 10 l4 0 M26 8 l0 4" stroke="#fff" stroke-width="1.2" stroke-linecap="round"/></svg>' }
+                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 40" width="32" height="40"><circle cx="7"  cy="5" r="2.8" fill="#ff6600"/><circle cx="13" cy="5" r="2.8" fill="#ff6600"/><circle cx="19" cy="5" r="2.8" fill="#ff6600"/><circle cx="25" cy="5" r="2.8" fill="#ff6600"/><rect x="1" y="9" width="28" height="20" rx="0.5" fill="none" stroke="#ff6600" stroke-width="2.5"/><line x1="1" y1="29" x2="1" y2="39" stroke="#ff6600" stroke-width="2.5" stroke-linecap="round"/></svg>' }
 };
 function communeFillOpacity(zoom) {
   if (zoom <= 9)  return 0.30;
@@ -1038,6 +1038,7 @@ function buildDFCILayer2km() {
                 + '<button class="tactique-btn" data-type="codis" title="PC CODIS"><span class="tb-icon">\u{1F3C1}</span><span class="tb-label">PC CODIS</span></button>'
                 + '<button class="tactique-btn" data-type="feu" title="D\u00e9part de Feu"><span class="tb-icon">\u{1F525}</span><span class="tb-label">D\u00e9part Feu</span></button>'
                 + '<button class="tactique-btn" data-type="harpon" title="HARPON"><span class="tb-icon">\u{1F697}</span><span class="tb-label">HARPON</span></button>'
+                + '<button class="tactique-btn" data-type="propagation" title="Propagation feu"><span class="tb-icon">&#x27A1;</span><span class="tb-label">Propagation</span></button>'
                 + '</div>';
             };
 
@@ -1238,6 +1239,341 @@ function deposerMarqueur(type, lat, lon, dfciCode, container) {
     marqueursSlot[0][type].push(mkr);
   }
 }
+// ══════════════════════════════════════════════════════════════════════════════
+var _rotState = null;
+
+function initRotationMode(type, lat, lon, dfci, container, btn) {
+  map.closePopup();
+  map.dragging.disable();
+
+  var def  = TACTIQUE_DEF[type];
+  var slot = slotActif || 0;
+  var col  = slot && COULEURS[slot] ? COULEURS[slot].fill : '#ffffff';
+  var angle = 0;
+
+  // Vérifier quota
+  if (slot && marqueursSlot[slot][type].length >= MAX_MARQUEURS) {
+    var oldest = marqueursSlot[slot][type].shift();
+    if (oldest) map.removeLayer(oldest);
+  }
+
+  // Construire le wrapper SVG rotatif
+  function makeRotIcon(a) {
+    var slotBadge = slot
+      ? '<div style="position:absolute;top:-6px;right:-6px;width:14px;height:14px;'
+        + 'border-radius:50%;background:' + col + ';border:1.5px solid #fff;'
+        + 'font-size:8px;font-weight:700;display:flex;align-items:center;'
+        + 'justify-content:center;color:#fff;font-family:Arial;">' + slot + '</div>'
+      : '';
+    var w = type === 'transit' ? 48 : 28;
+    var h = type === 'transit' ? 24 : 36;
+    return '<div style="position:relative;display:inline-block;'
+      + 'transform:rotate(' + a + 'deg);transform-origin:center center;">'
+      + def.svg + slotBadge + '</div>';
+  }
+
+  var sz = type === 'transit' ? [48,24] : [28,36];
+  var mkr = L.marker([lat, lon], {
+    icon: L.divIcon({ html: makeRotIcon(0), className:'', iconSize: sz, iconAnchor: [sz[0]/2, sz[1]/2] }),
+    zIndexOffset: 900
+  }).addTo(map);
+
+  _rotState = { mkr: mkr, type: type, lat: lat, lon: lon, dfci: dfci,
+                container: container, slot: slot, col: col, def: def,
+                sz: sz, angle: 0, makeRotIcon: makeRotIcon };
+
+  // Trouver le centre DOM du marqueur pour calculer l'angle
+  function getMarkerCenter() {
+    var el = mkr.getElement();
+    if (!el) return null;
+    var rect = el.getBoundingClientRect();
+    return { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+  }
+
+  function onMouseMove(e) {
+    if (!_rotState) return;
+    var center = getMarkerCenter();
+    if (!center) return;
+    var dx = e.clientX - center.x;
+    var dy = e.clientY - center.y;
+    var a = Math.atan2(dy, dx) * 180 / Math.PI + 90; // +90° : 0=haut
+    _rotState.angle = a;
+    mkr.setIcon(L.divIcon({
+      html: makeRotIcon(a),
+      className: '',
+      iconSize: sz,
+      iconAnchor: [sz[0]/2, sz[1]/2]
+    }));
+  }
+
+  function onMouseUp() {
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup',  onMouseUp);
+    map.dragging.enable();
+    if (!_rotState) return;
+    var finalAngle = _rotState.angle;
+    map.removeLayer(mkr);
+    _rotState = null;
+    _finaliserRotation(type, lat, lon, dfci, container, slot, col, def, sz, finalAngle);
+  }
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup',   onMouseUp);
+}
+
+function _finaliserRotation(type, lat, lon, dfci, container, slot, col, def, sz, angle) {
+  var slotBadge = slot
+    ? '<div style="position:absolute;top:-6px;right:-6px;width:14px;height:14px;'
+      + 'border-radius:50%;background:' + col + ';border:1.5px solid #fff;'
+      + 'font-size:8px;font-weight:700;display:flex;align-items:center;'
+      + 'justify-content:center;color:#fff;font-family:Arial;">' + slot + '</div>'
+    : '';
+  var iconHtml = '<div style="position:relative;display:inline-block;'
+    + 'transform:rotate(' + angle.toFixed(1) + 'deg);transform-origin:center center;">'
+    + def.svg + slotBadge + '</div>';
+
+  var heure      = new Date().toTimeString().slice(0,5);
+  var slotTxt    = slot ? ' <span style="color:' + col + ';font-weight:700;">S' + slot + '</span>' : '';
+  var communeNom = container ? (container.getAttribute('data-commune') || '') : '';
+  var communeLigne = communeNom
+    ? '<div class="popup-row"><span class="lbl">Commune</span>'
+      + '<span class="val" style="color:#e8a020;">' + communeNom + '</span></div>' : '';
+
+  var popupHtml = '<div class="popup-inner" style="min-width:200px;">'
+    + '<div class="popup-header">'
+    + '<div class="popup-icon" style="background:' + def.couleurBg + ';font-size:16px;">'
+    + (type==='transit'?'\uD83D\uDCCD':'\uD83C\uDFAF') + '</div>'
+    + '<div><div class="popup-title" style="color:' + def.couleur + ';">'
+    + def.label + slotTxt + '</div>'
+    + '<div class="popup-sub">' + dfci + ' &mdash; ' + heure
+    + ' &mdash; ' + angle.toFixed(0) + '\u00b0</div></div>'
+    + '</div>'
+    + communeLigne
+    + '<div class="popup-row"><span class="lbl">Lat / Lon</span>'
+    + '<span class="val" style="font-size:11px;">' + lat.toFixed(5) + 'N  ' + lon.toFixed(5) + 'E</span></div>'
+    + '<div style="display:flex;gap:6px;justify-content:center;margin-top:8px;'
+    + 'padding-top:6px;border-top:1px solid #2a3040;">'
+    + '<button onclick="supprimerMarqueur(this)" data-type="' + type + '" data-slot="' + slot + '" '
+    + 'style="background:#3a0a0a;border:1px solid #ef5350;border-radius:4px;color:#ef5350;'
+    + 'font-family:Arial,sans-serif;font-size:12px;padding:4px 10px;cursor:pointer;">'
+    + '&#10005; Supprimer</button>'
+    + '<button onclick="supprimerGroupe(this.dataset.type,+this.dataset.slot)" '
+    + 'data-type="' + type + '" data-slot="' + slot + '" '
+    + 'style="background:#1a1f2e;border:1px solid #4a5570;border-radius:4px;color:#8a9bb0;'
+    + 'font-family:Arial,sans-serif;font-size:12px;padding:4px 10px;cursor:pointer;">'
+    + '&#10005;&#10005; Effacer groupe</button>'
+    + '</div></div>';
+
+  var mkr = L.marker([lat, lon], {
+    icon: L.divIcon({ html: iconHtml, className:'', iconSize: sz, iconAnchor: [sz[0]/2, sz[1]/2] }),
+    zIndexOffset: 800
+  }).bindPopup(popupHtml, { className:'custom-popup', maxWidth:240 }).addTo(map);
+
+  var mkrId = Date.now() + Math.random();
+  mkr._tactiqueId   = mkrId;
+  mkr._tactiqueType = type;
+  mkr._tactiqueSlot = slot;
+  mkr.setPopupContent(popupHtml.replace(
+    'onclick="supprimerMarqueur(this)"',
+    'onclick="supprimerMarqueur(this)" data-mkrid="' + mkrId + '"'
+  ));
+
+  if (slot) {
+    if (!marqueursSlot[slot][type]) marqueursSlot[slot][type] = [];
+    marqueursSlot[slot][type].push(mkr);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MODE PROPAGATION — Flèche rouge directionnelle
+// Mousedown → origine fixe → drag pour direction+longueur → mouseup → fixe
+// ══════════════════════════════════════════════════════════════════════════════
+var _propLayer = null;  // polyline temporaire pendant le drag
+
+function initPropagationMode(lat, lon, dfci, container, btn) {
+  map.closePopup();
+  map.dragging.disable();
+
+  var slot = slotActif || 0;
+  var col  = slot && COULEURS[slot] ? COULEURS[slot].fill : '#ffffff';
+
+  // Vérifier quota
+  if (!marqueursSlot[slot].propagation) marqueursSlot[slot].propagation = [];
+  if (slot && marqueursSlot[slot].propagation.length >= MAX_MARQUEURS) {
+    var oldest = marqueursSlot[slot].propagation.shift();
+    if (oldest) map.removeLayer(oldest);
+  }
+
+  // Point d'origine en coordonnées carte
+  var originPx = map.latLngToContainerPoint([lat, lon]);
+
+  // Marqueur d'origine (petit point rouge)
+  var originDot = L.circleMarker([lat, lon], {
+    radius:6, color:'#cc0000', fillColor:'#ff2222', fillOpacity:1, weight:2,
+    interactive:false
+  }).addTo(map);
+
+  // Flèche temporaire (sera recréée à chaque mousemove)
+  if (_propLayer) { map.removeLayer(_propLayer); _propLayer = null; }
+
+  function onMouseMove(e) {
+    // Position souris en coordonnées carte
+    var mapEl   = map.getContainer();
+    var mapRect = mapEl.getBoundingClientRect();
+    var px = e.clientX - mapRect.left;
+    var py = e.clientY - mapRect.top;
+    var destLatLng = map.containerPointToLatLng([px, py]);
+
+    // Supprimer l'ancienne flèche temporaire
+    if (_propLayer) { map.removeLayer(_propLayer); _propLayer = null; }
+
+    // Tracer la flèche
+    _propLayer = _drawArrow([lat, lon], [destLatLng.lat, destLatLng.lng], '#cc0000', true);
+  }
+
+  function onMouseUp(e) {
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup',   onMouseUp);
+    map.dragging.enable();
+
+    // Destination finale
+    var mapEl   = map.getContainer();
+    var mapRect = mapEl.getBoundingClientRect();
+    var px = e.clientX - mapRect.left;
+    var py = e.clientY - mapRect.top;
+    var destLatLng = map.containerPointToLatLng([px, py]);
+
+    // Supprimer temporaires
+    map.removeLayer(originDot);
+    if (_propLayer) { map.removeLayer(_propLayer); _propLayer = null; }
+
+    // Créer la flèche définitive avec popup
+    _finaliserPropagation(lat, lon, destLatLng.lat, destLatLng.lng,
+                          dfci, container, slot, col);
+  }
+
+  document.addEventListener('mousemove', onMouseMove);
+  document.addEventListener('mouseup',   onMouseUp);
+}
+
+function _drawArrow(from, to, color, temporary) {
+  // Calcule la pointe de flèche
+  var p1 = map.latLngToContainerPoint(from);
+  var p2 = map.latLngToContainerPoint(to);
+  var dx = p2.x - p1.x, dy = p2.y - p1.y;
+  var len = Math.sqrt(dx*dx + dy*dy);
+  if (len < 8) return L.layerGroup().addTo(map);
+
+  // Normaliser
+  var nx = dx/len, ny = dy/len;
+  // Pointe de flèche (légèrement en retrait par rapport à l'extrémité)
+  var arrowSize = Math.min(24, len * 0.35);
+  var tipPx = { x: p2.x, y: p2.y };
+  var left  = map.containerPointToLatLng([
+    tipPx.x - arrowSize*nx + arrowSize*0.5*ny,
+    tipPx.y - arrowSize*ny - arrowSize*0.5*nx
+  ]);
+  var right = map.containerPointToLatLng([
+    tipPx.x - arrowSize*nx - arrowSize*0.5*ny,
+    tipPx.y - arrowSize*ny + arrowSize*0.5*nx
+  ]);
+
+  var group = L.layerGroup();
+  // Trait principal
+  L.polyline([from, to], {
+    color: color, weight: 6, opacity: 0.85,
+    lineCap:'round', interactive: !temporary
+  }).addTo(group);
+  // Tête de flèche (polygone triangulaire)
+  L.polygon([to, [left.lat,left.lng], [right.lat,right.lng]], {
+    color: color, fillColor: color, fillOpacity:1,
+    weight:1, interactive: !temporary
+  }).addTo(group);
+
+  group.addTo(map);
+  return group;
+}
+
+function _finaliserPropagation(fromLat, fromLon, toLat, toLon, dfci, container, slot, col) {
+  var heure = new Date().toTimeString().slice(0,5);
+  var slotTxt = slot ? ' <span style="color:' + col + ';font-weight:700;">S' + slot + '</span>' : '';
+  var communeNom = container ? (container.getAttribute('data-commune') || '') : '';
+  var communeLigne = communeNom
+    ? '<div class="popup-row"><span class="lbl">Commune</span>'
+      + '<span class="val" style="color:#e8a020;">' + communeNom + '</span></div>' : '';
+
+  // Calculer l'angle de propagation (par rapport au Nord)
+  var dLat = toLat - fromLat, dLon = toLon - fromLon;
+  var angleNord = (Math.atan2(dLon, dLat) * 180 / Math.PI + 360) % 360;
+
+  var popupHtml = '<div class="popup-inner" style="min-width:200px;">'
+    + '<div class="popup-header">'
+    + '<div class="popup-icon" style="background:#3a0000;font-size:18px;">&#x27A1;</div>'
+    + '<div><div class="popup-title" style="color:#cc0000;">Propagation' + slotTxt + '</div>'
+    + '<div class="popup-sub">' + dfci + ' &mdash; ' + heure
+    + ' &mdash; ' + angleNord.toFixed(0) + '\u00b0 N</div></div>'
+    + '</div>'
+    + communeLigne
+    + '<div class="popup-row"><span class="lbl">Origine</span>'
+    + '<span class="val" style="font-size:11px;">' + fromLat.toFixed(4) + 'N ' + fromLon.toFixed(4) + 'E</span></div>'
+    + '<div style="display:flex;gap:6px;justify-content:center;margin-top:8px;'
+    + 'padding-top:6px;border-top:1px solid #2a3040;">'
+    + '<button onclick="supprimerMarqueur(this)" data-type="propagation" data-slot="' + slot + '" '
+    + 'style="background:#3a0a0a;border:1px solid #ef5350;border-radius:4px;color:#ef5350;'
+    + 'font-family:Arial,sans-serif;font-size:12px;padding:4px 10px;cursor:pointer;">'
+    + '&#10005; Supprimer</button>'
+    + '<button onclick="supprimerGroupe(this.dataset.type,+this.dataset.slot)" '
+    + 'data-type="propagation" data-slot="' + slot + '" '
+    + 'style="background:#1a1f2e;border:1px solid #4a5570;border-radius:4px;color:#8a9bb0;'
+    + 'font-family:Arial,sans-serif;font-size:12px;padding:4px 10px;cursor:pointer;">'
+    + '&#10005;&#10005; Effacer groupe</button>'
+    + '</div></div>';
+
+  // ID unique pour la suppression
+  var mkrId = Date.now() + Math.random();
+
+  // Badge slot : petit label au-dessus de l'origine de la flèche
+  var slotColor = slot && COULEURS[slot] ? COULEURS[slot].fill : '#ffffff';
+  var badgeHtml = slot
+    ? '<div style="background:' + slotColor + ';color:#fff;border:1.5px solid #fff;'
+      + 'border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:700;'
+      + 'display:flex;align-items:center;justify-content:center;font-family:Arial;">'
+      + slot + '</div>'
+    : '';
+  var badgeMkr = L.marker([fromLat, fromLon], {
+    icon: L.divIcon({ html: badgeHtml, className:'', iconSize:[16,16], iconAnchor:[8,20] }),
+    interactive: false, zIndexOffset: 850
+  }).addTo(map);
+
+  // Injecter mkrId dans le bouton Supprimer du popup
+  var popupFinal = popupHtml.replace(
+    'onclick="supprimerMarqueur(this)"',
+    'onclick="supprimerMarqueur(this)" data-mkrid="' + mkrId + '"'
+  );
+
+  // Flèche définitive
+  var arrow = _drawArrow([fromLat,fromLon], [toLat,toLon], '#cc0000', false);
+
+  // Ajouter popup sur le clic de la flèche
+  arrow.eachLayer(function(layer) {
+    layer.bindPopup(popupFinal, { className:'custom-popup', maxWidth:240 });
+    layer.on('click', function() { layer.openPopup(); });
+  });
+
+  // Stocker badge + flèche ensemble pour suppression
+  arrow._tactiqueId   = mkrId;
+  arrow._tactiqueType = 'propagation';
+  arrow._tactiqueSlot = slot;
+  arrow._badgeMkr     = badgeMkr;  // référence pour suppression groupée
+
+  if (slot) {
+    marqueursSlot[slot].propagation.push(arrow);
+  } else {
+    marqueursSlot[0].propagation.push(arrow);
+  }
+}
+
+
 function supprimerMarqueur(btn) {
   var type  = btn.getAttribute('data-type');
   var slot  = parseInt(btn.getAttribute('data-slot')) || 0;
@@ -1248,6 +1584,8 @@ function supprimerMarqueur(btn) {
     if (!marqueursSlot[s] || !marqueursSlot[s][type]) return;
     marqueursSlot[s][type] = marqueursSlot[s][type].filter(function(mkr) {
       if (mkr._tactiqueId === mkrId) {
+        if (mkr._badgeMkr) map.removeLayer(mkr._badgeMkr);
+        if (mkr.eachLayer) { mkr.eachLayer(function(l){ map.removeLayer(l); }); }
         map.removeLayer(mkr);
         return false;
       }
@@ -1257,6 +1595,15 @@ function supprimerMarqueur(btn) {
   // Fermer le popup APRÈS la suppression
   setTimeout(function() { map.closePopup(); }, 50);
 }
+
+function supprimerTousMarqueurs(slot) {
+  if (!slot) return;
+  Object.keys(marqueursSlot[slot]).forEach(function(type) {
+    marqueursSlot[slot][type].forEach(function(mkr) { map.removeLayer(mkr); });
+    marqueursSlot[slot][type] = [];
+  });
+}
+
 function supprimerGroupe(type, slot) {
   // Effacer tous les marqueurs d'un même type sur un même slot
   // Si slot=0 (pas de slot actif), effacer dans tous les slots
@@ -1265,7 +1612,11 @@ function supprimerGroupe(type, slot) {
   slots.forEach(function(s) {
     if (marqueursSlot[s] && marqueursSlot[s][type]) {
       console.log('[SuppGroupe] slot ' + s + ' -> ' + marqueursSlot[s][type].length + ' marqueur(s)');
-      marqueursSlot[s][type].forEach(function(mkr) { map.removeLayer(mkr); });
+      marqueursSlot[s][type].forEach(function(mkr) {
+        if (mkr._badgeMkr) map.removeLayer(mkr._badgeMkr);
+        if (mkr.eachLayer) { mkr.eachLayer(function(l){ map.removeLayer(l); }); }
+        map.removeLayer(mkr);
+      });
       marqueursSlot[s][type] = [];
     }
   });
@@ -1334,26 +1685,52 @@ function dfciSearchHarpon(n) {
 }
 document.getElementById('btn-go').onclick = function() { dfciSearchHarpon(1); };
 
-// ── CLICK HANDLER Insert Points ───────────────────────────────────────────────
-function initClickHandler() {
+  // Handler bouton Slot libre + clic droit code DFCI (module recherche détaillée)
   document.addEventListener('click', function(e) {
-    var btn = e.target.closest('.tactique-btn');
-    if (btn) {
-      var container = btn.closest('.tactique-btns');
-      if (!container) return;
-      var type = btn.getAttribute('data-type');
-      var lat  = parseFloat(container.getAttribute('data-lat'));
-      var lon  = parseFloat(container.getAttribute('data-lon'));
-      var dfci = container.getAttribute('data-dfci');
+    var btnSend = e.target.closest('.sdp-send-dfci');
+    if (btnSend) { sdpEnvoyerDFCI(btnSend.getAttribute('data-code')); return; }
+  });
+  document.addEventListener('contextmenu', function(e) {
+    var span = e.target.closest('.sdp-dfci-code');
+    if (!span) return;
+    e.preventDefault();
+    sdpEnvoyerDFCI(span.getAttribute('data-code'));
+  });
+
+  // Handler délégué pour les boutons tactiques dans les popups DFCI
+  // CAPTURE=true : s'exécute AVANT Leaflet qui fermerait le popup sur mousedown
+  document.addEventListener('mousedown', function(e) {
+    if (e.button !== 0) return;
+    var btn = e.target.closest('.tactique-btn[data-type]');
+    if (!btn) return;
+    var container = btn.closest('.tactique-btns');
+    if (!container) return;
+    // Lire toutes les données AVANT que Leaflet ferme le popup
+    var lat  = parseFloat(container.getAttribute('data-lat'));
+    var lon  = parseFloat(container.getAttribute('data-lon'));
+    var dfci = container.getAttribute('data-dfci');
+    var comm = container.getAttribute('data-commune') || '';
+    var type = btn.getAttribute('data-type');
+    // Empêcher Leaflet de fermer le popup avant qu'on ait terminé
+    e.stopPropagation();
+    e.preventDefault();
+    if (type === 'transit' || type === 'engagement') {
+      initRotationMode(type, lat, lon, dfci, container, btn);
+    } else if (type === 'propagation') {
+      initPropagationMode(lat, lon, dfci, container, btn);
+    } else {
+      // Fermer le popup manuellement après avoir lu les données
+      setTimeout(function() { map.closePopup(); }, 10);
       deposerMarqueur(type, lat, lon, dfci, container);
-      map.closePopup();
     }
+  }, true);  // true = capture phase — avant Leaflet
+  document.addEventListener('click', function(e) {
+    // Effacer groupe
     var btnG = e.target.closest('.btn-suppr-groupe');
     if (btnG) {
-      supprimerGroupe(btnG.getAttribute('data-type'), parseInt(btnG.getAttribute('data-slot'))||0);
+      supprimerGroupe(btnG.getAttribute('data-type'), parseInt(btnG.getAttribute('data-slot')) || 0);
     }
   });
-}
 
 // ── ZOOMEND ───────────────────────────────────────────────────────────────────
 function initZoomend() {
@@ -1707,50 +2084,71 @@ function sdpSearchAddr() {
   if (!val) return;
   var results = document.getElementById('sdp-results');
   results.innerHTML = '<div class="sdp-loading"><span class="dfci-spinner" style="display:inline-block;vertical-align:middle;margin-right:6px"></span>Recherche...</div>';
-  var commune = sdpCommuneSelect ? sdpCommuneSelect.nom : '';
-  var queryFull = commune ? (val+' '+commune+' Var France') : (val+' Var France');
 
-  // Bbox Var strict (toujours appliquée si pas de commune)
-  // Avec commune : bbox ~10km autour du centre
+  // Auto-sélection : si le champ commune a du texte mais sdpCommuneSelect est null
+  // → chercher une correspondance exacte dans COMMUNES_VAR
+  if (!sdpCommuneSelect) {
+    var cinp = document.getElementById('sdp-commune-input');
+    if (cinp && cinp.value.trim().length > 1) {
+      var val2 = cinp.value.trim().toLowerCase();
+      var found = COMMUNES_VAR.find(function(cm) {
+        return cm.nom.toLowerCase() === val2;
+      });
+      if (!found) found = COMMUNES_VAR.find(function(cm) {
+        return cm.nom.toLowerCase().indexOf(val2) === 0;
+      });
+      if (found) {
+        sdpSelectCommune(found);
+        // sdpCommuneSelect est maintenant défini
+      }
+    }
+  }
+
   var VAR_BBOX = {minLon:5.67, minLat:42.98, maxLon:7.72, maxLat:43.93};
-  var clat = sdpCommuneSelect ? sdpCommuneSelect.lat : 43.4;
-  var clon = sdpCommuneSelect ? sdpCommuneSelect.lon : 6.2;
-  var dd   = sdpCommuneSelect ? 0.10 : 999; // 999 = pas de restriction sup à la bbox Var
+  var commune  = sdpCommuneSelect ? sdpCommuneSelect.nom : '';
+  var clat     = sdpCommuneSelect ? sdpCommuneSelect.lat : 43.4;
+  var clon     = sdpCommuneSelect ? sdpCommuneSelect.lon : 6.2;
+
+  // Avec commune : bbox ±6km (0.06° lat/lon ≈ 5-6km dans le Var)
+  var dd = 0.06;
   var bboxMinLon = sdpCommuneSelect ? Math.max(clon-dd, VAR_BBOX.minLon) : VAR_BBOX.minLon;
   var bboxMinLat = sdpCommuneSelect ? Math.max(clat-dd, VAR_BBOX.minLat) : VAR_BBOX.minLat;
   var bboxMaxLon = sdpCommuneSelect ? Math.min(clon+dd, VAR_BBOX.maxLon) : VAR_BBOX.maxLon;
   var bboxMaxLat = sdpCommuneSelect ? Math.min(clat+dd, VAR_BBOX.maxLat) : VAR_BBOX.maxLat;
 
-  // Source 1 : BAN — citycode si commune selectionnee (filtre strict commune)
-  var banBase = 'https://api-adresse.data.gouv.fr/search/?q='
-    + encodeURIComponent(val) + '&limit=8&autocomplete=0';
+  // ── Source 1 : BAN ── citycode strict si commune connue ──────────────────
   var banUrl;
   if (sdpCommuneSelect && sdpCommuneSelect.insee) {
-    // Filtre strict commune via code INSEE = uniquement les adresses de la commune
-    banUrl = banBase + '&citycode=' + sdpCommuneSelect.insee;
+    banUrl = 'https://api-adresse.data.gouv.fr/search/?q='
+      + encodeURIComponent(val) + '&limit=8&autocomplete=0'
+      + '&citycode=' + sdpCommuneSelect.insee;
   } else if (sdpCommuneSelect) {
-    // Code INSEE pas encore charge : filtre par lat/lon proche
-    banUrl = banBase + '&lat=' + clat + '&lon=' + clon;
+    // INSEE pas encore chargé — filtre lat/lon serré
+    banUrl = 'https://api-adresse.data.gouv.fr/search/?q='
+      + encodeURIComponent(val) + '&limit=8&autocomplete=0'
+      + '&lat=' + clat + '&lon=' + clon;
   } else {
-    // Pas de commune : forcer le Var via " 83"
     banUrl = 'https://api-adresse.data.gouv.fr/search/?q='
       + encodeURIComponent(val + ' 83') + '&limit=5&autocomplete=0'
       + '&lat=43.4&lon=6.2';
   }
-  var banUrlFinal = banUrl;
 
-  // Source 2 : IGN Géoplateforme — bbox stricte autour commune ou bbox Var
+  // ── Source 2 : IGN — toponymies SCAN25, bbox stricte ─────────────────────
+  // Requête sans le nom commune pour éviter la dérive géographique
   var ignUrl = 'https://data.geopf.fr/geocodage/search?q='
-    + encodeURIComponent(commune ? val + ' ' + commune : val)
+    + encodeURIComponent(val)
     + '&index=PositionOfInterest&limit=8'
     + '&bbox=' + bboxMinLon + ',' + bboxMinLat + ',' + bboxMaxLon + ',' + bboxMaxLat;
 
-  // Source 3 : Nominatim — viewbox Var strict, bounded=1 interdit les résultats hors zone
+  // ── Source 3 : Nominatim — bounded strict ────────────────────────────────
   var nomViewbox = sdpCommuneSelect
     ? (bboxMinLon+','+bboxMaxLat+','+bboxMaxLon+','+bboxMinLat)
     : (VAR_BBOX.minLon+','+VAR_BBOX.maxLat+','+VAR_BBOX.maxLon+','+VAR_BBOX.minLat);
+  var nomQuery = sdpCommuneSelect
+    ? val + ' ' + commune         // avec commune → plus précis
+    : val + ' Var';
   var nomUrl = 'https://nominatim.openstreetmap.org/search?format=json&limit=4'
-    + '&q=' + encodeURIComponent(commune ? val + ' ' + commune : val + ' Var')
+    + '&q=' + encodeURIComponent(nomQuery)
     + '&viewbox=' + nomViewbox + '&bounded=1&accept-language=fr';
 
   var done = 0;
@@ -1779,6 +2177,8 @@ function sdpSearchAddr() {
     ignR.forEach(function(f) {
       if (!f.geometry) return;
       var lt = f.geometry.coordinates[1], ln = f.geometry.coordinates[0];
+      // Filtrage strict bbox
+      if (lt < bboxMinLat || lt > bboxMaxLat || ln < bboxMinLon || ln > bboxMaxLon) return;
       if (all.some(function(a){return Math.abs(a.lat-lt)<0.001 && Math.abs(a.lon-ln)<0.001;})) return;
       var p = f.properties;
       all.push({
@@ -1791,6 +2191,8 @@ function sdpSearchAddr() {
 
     nomR.forEach(function(r) {
       var lt = parseFloat(r.lat), ln = parseFloat(r.lon);
+      // Filtrage strict bbox : rejeter tout résultat hors de la zone cible
+      if (lt < bboxMinLat || lt > bboxMaxLat || ln < bboxMinLon || ln > bboxMaxLon) return;
       if (all.some(function(a){return Math.abs(a.lat-lt)<0.002 && Math.abs(a.lon-ln)<0.002;})) return;
       var pts = r.display_name.split(',');
       all.push({
@@ -1854,24 +2256,72 @@ function sdpClearAddr() {
 }
 
 function sdpGoToResult(item, dfciCode) {
-  // Retirer l'ancien marqueur de résultat
   if (window._sdpLastMarker) map.removeLayer(window._sdpLastMarker);
-
   map.setView([item.lat, item.lon], 16);
 
-  var popupHtml = '<div class="popup-inner" style="min-width:200px;">'
+  var dfciBlock = '';
+  if (dfciCode) {
+    dfciBlock = '<div style="margin-top:6px;padding-top:6px;border-top:1px solid #2a3040;">'
+      + '<div style="font-size:11px;color:#6a7a8a;margin-bottom:3px;">Code DFCI</div>'
+      + '<div style="display:flex;align-items:center;gap:8px;">'
+      + '<span class="sdp-dfci-code" data-code="' + dfciCode + '" '
+      + 'title="Clic droit pour envoyer dans un slot libre (S1-S4)" '
+      + 'style="font-size:15px;font-weight:700;color:#e8a020;cursor:context-menu;'
+      + 'font-family:Barlow Condensed,sans-serif;letter-spacing:1px;">' + dfciCode + '</span>'
+      + '<button class="sdp-send-dfci" data-code="' + dfciCode + '" '
+      + 'title="Envoyer dans le premier slot libre S1 a S4" '
+      + 'style="background:#1a2535;border:1px solid #4a7ab0;border-radius:4px;'
+      + 'color:#7ab3f0;font-family:Barlow Condensed,sans-serif;font-size:11px;'
+      + 'padding:2px 8px;cursor:pointer;white-space:nowrap;">'
+      + '\u2192 Slot libre</button>'
+      + '</div>'
+      + '<div style="font-size:10px;color:#4a5a6a;margin-top:3px;">'
+      + 'Clic bouton ou clic droit sur le code</div>'
+      + '</div>';
+  }
+
+  var popupHtml = '<div class="popup-inner" style="min-width:220px;">'
     + '<b style="color:#e8a020;font-family:Barlow Condensed,sans-serif;font-size:15px;">' + item.name + '</b>';
   if (item.sub) popupHtml += '<div style="font-size:11px;color:#6a7a8a;margin-top:2px;">' + item.sub + '</div>';
-  if (dfciCode) popupHtml += '<div style="font-size:13px;color:#7ab3f0;margin-top:4px;font-family:Barlow Condensed,sans-serif;">📐 ' + dfciCode + '</div>';
-  popupHtml += '</div>';
+  popupHtml += dfciBlock + '</div>';
 
   window._sdpLastMarker = L.circleMarker([item.lat, item.lon], {
     radius: 9, color: '#e85d26', fillColor: '#ff8c00', fillOpacity: 0.9, weight: 2
-  }).bindPopup(popupHtml, {className: 'custom-popup', maxWidth: 250})
+  }).bindPopup(popupHtml, {className: 'custom-popup', maxWidth: 260})
     .addTo(map)
     .openPopup();
 
   sdpMarkers.push(window._sdpLastMarker);
+}
+
+// Envoyer un code DFCI dans le premier slot libre S1-S4
+function sdpEnvoyerDFCI(code) {
+  var slots = [1, 2, 3, 4];
+  var target = null;
+  for (var i = 0; i < slots.length; i++) {
+    var n = slots[i];
+    var inp = document.getElementById('dfci-input-' + n);
+    if (inp && (!inp.value.trim() || !dfciState[n].highlight)) {
+      target = n;
+      break;
+    }
+  }
+  if (target === null) target = 1; // tous occupés → S1
+  var inp = document.getElementById('dfci-input-' + target);
+  if (inp) {
+    inp.value = code;
+    dfciSearch(target);
+    map.closePopup();
+    // Flash visuel sur le label du slot
+    var label = document.querySelector('.dfci-search-label.s' + target);
+    if (label) {
+      var orig = label.style.background;
+      var origC = label.style.color;
+      label.style.background = '#e85d26';
+      label.style.color = '#fff';
+      setTimeout(function() { label.style.background = orig; label.style.color = origC; }, 900);
+    }
+  }
 }
 
 </script>
