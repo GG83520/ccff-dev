@@ -1212,7 +1212,7 @@ function deposerMarqueur(type, lat, lon, dfciCode, container) {
     '</div>' +
     '</div>';
 
-  var mkr = L.marker([lat, lon], { icon: icon, zIndexOffset: 800 })
+  var mkr = L.marker([lat, lon], { icon: icon, zIndexOffset: 800, draggable: true })
     .bindPopup(popupHtml, { className: 'custom-popup', maxWidth: 240 });
   map.addLayer(mkr);
 
@@ -1229,13 +1229,68 @@ function deposerMarqueur(type, lat, lon, dfciCode, container) {
   );
   mkr.setPopupContent(popupFinal);
 
+  // ── Drag & Drop ──────────────────────────────────────────────────────────
+  mkr.on('dragstart', function() {
+    mkr.closePopup();
+  });
+
+  mkr.on('dragend', function(e) {
+    var newLatLng = e.target.getLatLng();
+    var newLat = newLatLng.lat;
+    var newLon = newLatLng.lng;
+
+    // Mettre à jour le popup avec les nouvelles coordonnées
+    var updatedPopup = popupFinal
+      .replace(/[\d.]+N &nbsp;[\d.]+E/, newLat.toFixed(5) + 'N  ' + newLon.toFixed(5) + 'E')
+      .replace(/[\d.]+N  [\d.]+E/, newLat.toFixed(5) + 'N  ' + newLon.toFixed(5) + 'E');
+    mkr.setPopupContent(updatedPopup);
+
+    if (type === 'transit' || type === 'engagement') {
+      // Après déplacement → réajustement d'angle
+      // Simuler un container virtuel avec les nouvelles coords
+      var fakeContainer = {
+        getAttribute: function(attr) {
+          if (attr === 'data-lat') return String(newLat);
+          if (attr === 'data-lon') return String(newLon);
+          if (attr === 'data-dfci') return mkr._tacticDfci || dfciCode;
+          if (attr === 'data-commune') return mkr._tacticCommune || communeNom;
+          return null;
+        }
+      };
+      // Supprimer l'ancien marqueur et relancer la rotation
+      var s = mkr._tactiqueSlot;
+      var t = mkr._tactiqueType;
+      if (marqueursSlot[s] && marqueursSlot[s][t]) {
+        marqueursSlot[s][t] = marqueursSlot[s][t].filter(function(m) {
+          return m._tactiqueId !== mkr._tactiqueId;
+        });
+      }
+      map.removeLayer(mkr);
+      // Restaurer le slot et relancer la rotation
+      slotActif = s;
+      var fakeContainer2 = {
+        getAttribute: function(attr) {
+          if (attr === 'data-commune') return mkr._tacticCommune || communeNom;
+          return null;
+        }
+      };
+      initRotationMode(type, newLat, newLon, mkr._tacticDfci || dfciCode, fakeContainer2, null);
+    } else {
+      // Autres types (codis, feu, harpon) : simple mise à jour position
+      mkr._tacticLat = newLat;
+      mkr._tacticLon = newLon;
+    }
+  });
+
+  // Stocker les métadonnées pour dragend
+  mkr._tacticDfci    = dfciCode;
+  mkr._tacticCommune = communeNom;
+
   // Stocker la référence
-  console.log('[Depot] type=' + type + ' slot=' + slot + ' -> total=' + (slot ? marqueursSlot[slot][type].length + 1 : '?'));
   if (slot) {
     marqueursSlot[slot][type].push(mkr);
   } else {
-    // Sans slot actif : stocker dans un tableau global "neutre"
-    if (!marqueursSlot[0]) marqueursSlot[0] = { transit:[], engagement:[], codis:[], feu:[] };
+    if (!marqueursSlot[0]) marqueursSlot[0] = { transit:[], engagement:[], codis:[], feu:[], harpon:[], propagation:[] };
     marqueursSlot[0][type].push(mkr);
   }
 }
@@ -1366,17 +1421,52 @@ function _finaliserRotation(type, lat, lon, dfci, container, slot, col, def, sz,
 
   var mkr = L.marker([lat, lon], {
     icon: L.divIcon({ html: iconHtml, className:'', iconSize: sz, iconAnchor: [sz[0]/2, sz[1]/2] }),
-    zIndexOffset: 800
+    zIndexOffset: 800,
+    draggable: true
   }).bindPopup(popupHtml, { className:'custom-popup', maxWidth:240 }).addTo(map);
 
   var mkrId = Date.now() + Math.random();
   mkr._tactiqueId   = mkrId;
   mkr._tactiqueType = type;
   mkr._tactiqueSlot = slot;
-  mkr.setPopupContent(popupHtml.replace(
+  mkr._tacticDfci   = dfci;
+  mkr._tacticAngle  = angle;
+
+  var popupFinal = popupHtml.replace(
     'onclick="supprimerMarqueur(this)"',
     'onclick="supprimerMarqueur(this)" data-mkrid="' + mkrId + '"'
-  ));
+  );
+  mkr.setPopupContent(popupFinal);
+
+  // ── Drag → re-rotation automatique ──────────────────────────────────────
+  mkr.on('dragstart', function() { mkr.closePopup(); });
+
+  mkr.on('dragend', function(e) {
+    var newLatLng = e.target.getLatLng();
+    var newLat = newLatLng.lat;
+    var newLon = newLatLng.lng;
+    // Supprimer ce marqueur du slot
+    var s = mkr._tactiqueSlot;
+    var t = mkr._tactiqueType;
+    if (marqueursSlot[s] && marqueursSlot[s][t]) {
+      marqueursSlot[s][t] = marqueursSlot[s][t].filter(function(m) {
+        return m._tactiqueId !== mkr._tactiqueId;
+      });
+    }
+    map.removeLayer(mkr);
+    // Restaurer le slot du marqueur avant re-rotation
+    var savedSlot = slotActif;
+    slotActif = s;
+    // Relancer la rotation depuis la nouvelle position
+    var fakeContainer = {
+      getAttribute: function(attr) {
+        if (attr === 'data-commune') return mkr._tacticCommune || '';
+        return null;
+      }
+    };
+    initRotationMode(t, newLat, newLon, mkr._tacticDfci || dfci, fakeContainer, null);
+    // slotActif sera restauré après la rotation (dragend de initRotationMode)
+  });
 
   if (slot) {
     if (!marqueursSlot[slot][type]) marqueursSlot[slot][type] = [];
