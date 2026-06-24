@@ -2754,7 +2754,7 @@ var TACTIQUE_DEF = {
   codis:      { label:'PC CODIS',           couleur:'#8e44ad', couleurBg:'#2a0a40',
                 svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 40" width="32" height="40"><circle cx="7"  cy="5" r="2.8" fill="#8e44ad"/><circle cx="13" cy="5" r="2.8" fill="#8e44ad"/><circle cx="19" cy="5" r="2.8" fill="#8e44ad"/><circle cx="25" cy="5" r="2.8" fill="#8e44ad"/><rect x="1" y="9" width="28" height="20" rx="0.5" fill="none" stroke="#8e44ad" stroke-width="2.5"/><line x1="1" y1="29" x2="1" y2="39" stroke="#8e44ad" stroke-width="2.5" stroke-linecap="round"/></svg>' },
   feu:        { label:'Départ de Feu',      couleur:'#e85d26', couleurBg:'#3a1500',
-                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28"><polygon points="14,2 17,10 24,10 18,15 20,23 14,18 8,23 10,15 4,10 11,10" fill="#e85d26" stroke="#fff" stroke-width="1.5"/></svg>' },
+                svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="56" height="56"><polygon points="14,2 17,10 24,10 18,15 20,23 14,18 8,23 10,15 4,10 11,10" fill="#e85d26" stroke="#fff" stroke-width="1.5"/></svg>' },
   harpon:     { label:'HARPON',             couleur:'#ff6600', couleurBg:'#2a1500',
                 svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 40" width="32" height="40"><circle cx="7"  cy="5" r="2.8" fill="#ff6600"/><circle cx="13" cy="5" r="2.8" fill="#ff6600"/><circle cx="19" cy="5" r="2.8" fill="#ff6600"/><circle cx="25" cy="5" r="2.8" fill="#ff6600"/><rect x="1" y="9" width="28" height="20" rx="0.5" fill="none" stroke="#ff6600" stroke-width="2.5"/><line x1="1" y1="29" x2="1" y2="39" stroke="#ff6600" stroke-width="2.5" stroke-linecap="round"/></svg>' }
 };
@@ -2792,9 +2792,9 @@ function deposerMarqueur(type, lat, lon, dfciCode, container) {
   var icon = L.divIcon({
     html: iconHtml,
     className: '',
-    iconSize: type === 'feu' ? [28,28] : type === 'harpon' ? [32,40] : type === 'transit' ? [48,24] : type === 'codis' ? [32,40] : [28,36],
-    iconAnchor: type === 'feu' ? [14,14] : type === 'harpon' ? [16,38] : type === 'transit' ? [24,12] : type === 'codis' ? [16,38] : [14,34],
-    popupAnchor: [0, type === 'feu' ? -16 : type === 'harpon' ? -38 : type === 'transit' ? -16 : -38]
+    iconSize: type === 'feu' ? [56,56] : type === 'harpon' ? [32,40] : type === 'transit' ? [48,24] : type === 'codis' ? [32,40] : [28,36],
+    iconAnchor: type === 'feu' ? [28,28] : type === 'harpon' ? [16,38] : type === 'transit' ? [24,12] : type === 'codis' ? [16,38] : [14,34],
+    popupAnchor: [0, type === 'feu' ? -32 : type === 'harpon' ? -38 : type === 'transit' ? -16 : -38]
   });
 
   // Popup du marqueur
@@ -2865,7 +2865,7 @@ function deposerMarqueur(type, lat, lon, dfciCode, container) {
       .replace(/[\d.]+N  [\d.]+E/, newLat.toFixed(5) + 'N  ' + newLon.toFixed(5) + 'E');
     mkr.setPopupContent(updatedPopup);
 
-    if (type === 'transit' || type === 'engagement') {
+    if (type === 'engagement') {
       // Après déplacement → réajustement d'angle
       // Simuler un container virtuel avec les nouvelles coords
       var fakeContainer = {
@@ -3075,18 +3075,21 @@ function _finaliserRotation(type, lat, lon, dfci, container, slot, col, def, sz,
       });
     }
     map.removeLayer(mkr);
-    // Restaurer le slot du marqueur avant re-rotation
-    var savedSlot = slotActif;
+    // Restaurer le slot
     slotActif = s;
-    // Relancer la rotation depuis la nouvelle position
     var fakeContainer = {
       getAttribute: function(attr) {
         if (attr === 'data-commune') return mkr._tacticCommune || '';
         return null;
       }
     };
-    initRotationMode(t, newLat, newLon, mkr._tacticDfci || dfci, fakeContainer, null);
-    // slotActif sera restauré après la rotation (dragend de initRotationMode)
+    if (t === 'engagement') {
+      // Engagement : re-rotation automatique après drag
+      initRotationMode(t, newLat, newLon, mkr._tacticDfci || dfci, fakeContainer, null);
+    } else {
+      // Transit : simple redépôt sans rotation
+      deposerMarqueur(t, newLat, newLon, mkr._tacticDfci || dfci, fakeContainer);
+    }
   });
 
   // Stocker même si slot=0 (sans slot actif)
@@ -3128,7 +3131,6 @@ function initPropagationMode(lat, lon, dfci, container, btn) {
   if (_propLayer) { map.removeLayer(_propLayer); _propLayer = null; }
 
   function onMouseMove(e) {
-    // Position souris en coordonnées carte
     var mapEl   = map.getContainer();
     var mapRect = mapEl.getBoundingClientRect();
     var px = e.clientX - mapRect.left;
@@ -3138,14 +3140,31 @@ function initPropagationMode(lat, lon, dfci, container, btn) {
     // Supprimer l'ancienne flèche temporaire
     if (_propLayer) { map.removeLayer(_propLayer); _propLayer = null; }
 
-    // Tracer la flèche
+    // Calculer l'angle par rapport au Nord
+    var dLat = destLatLng.lat - lat;
+    var dLon = destLatLng.lng - lon;
+    var angleN = (Math.atan2(dLon, dLat) * 180 / Math.PI + 360) % 360;
+
+    // Tracer la flèche temporaire
     _propLayer = _drawArrow([lat, lon], [destLatLng.lat, destLatLng.lng], '#cc0000', true);
+
+    // Afficher le label angle près de la pointe (position souris + décalage)
+    var lbl = document.getElementById('prop-angle-label');
+    if (lbl) {
+      lbl.textContent = angleN.toFixed(0).padStart(3,'0') + '° N';
+      lbl.style.display = 'block';
+      lbl.style.left = (e.clientX + 14) + 'px';
+      lbl.style.top  = (e.clientY - 28) + 'px';
+    }
   }
 
   function onMouseUp(e) {
     document.removeEventListener('mousemove', onMouseMove);
     document.removeEventListener('mouseup',   onMouseUp);
     map.dragging.enable();
+    // Masquer le label angle
+    var lbl = document.getElementById('prop-angle-label');
+    if (lbl) lbl.style.display = 'none';
 
     // Destination finale
     var mapEl   = map.getContainer();
@@ -3271,11 +3290,67 @@ function _finaliserPropagation(fromLat, fromLon, toLat, toLon, dfci, container, 
     layer.on('click', function() { layer.openPopup(); });
   });
 
-  // Stocker badge + flèche ensemble pour suppression
+  // Stocker badge + flèche ensemble pour suppression + drag
   arrow._tactiqueId   = mkrId;
   arrow._tactiqueType = 'propagation';
   arrow._tactiqueSlot = slot;
   arrow._badgeMkr     = badgeMkr;  // référence pour suppression groupée
+  // Stocker les coordonnées pour le drag (translation pure)
+  arrow._fromLat = fromLat; arrow._fromLon = fromLon;
+  arrow._toLat   = toLat;   arrow._toLon   = toLon;
+  arrow._dLat    = toLat - fromLat;  // delta de direction
+  arrow._dLon    = toLon - fromLon;
+  arrow._dfci    = dfci;
+  arrow._slot    = slot;
+  arrow._col     = col;
+  arrow._container = container;
+  // Rendre la flèche draggable via un marker invisible sur l'origine
+  var dragHandle = L.circleMarker([fromLat, fromLon], {
+    radius: 8, color: 'transparent', fillColor: 'transparent',
+    fillOpacity: 0, weight: 0, draggable: true
+  });
+  // Draggable via marker Leaflet sur l'origine
+  var dragMkr = L.marker([fromLat, fromLon], {
+    icon: L.divIcon({
+      html: '<div style="width:18px;height:18px;border-radius:50%;border:2px solid #cc0000;'
+          + 'background:rgba(204,0,0,0.25);cursor:move;" title="Déplacer la flèche"></div>',
+      className: '', iconSize:[18,18], iconAnchor:[9,9]
+    }),
+    draggable: true,
+    zIndexOffset: 900
+  }).addTo(map);
+  arrow._dragMkr = dragMkr;
+
+  dragMkr.on('dragstart', function() { map.closePopup(); });
+  dragMkr.on('drag', function(ev) {
+    var newFrom = ev.target.getLatLng();
+    var newTo   = { lat: newFrom.lat + arrow._dLat, lng: newFrom.lng + arrow._dLon };
+    // Redessiner la flèche
+    arrow.eachLayer(function(l) { map.removeLayer(l); });
+    arrow.clearLayers();
+    var newGroup = _drawArrow([newFrom.lat, newFrom.lng], [newTo.lat, newTo.lng], '#cc0000', false);
+    newGroup.eachLayer(function(l) { arrow.addLayer(l); });
+    // Déplacer le badge
+    if (arrow._badgeMkr) arrow._badgeMkr.setLatLng(newFrom);
+  });
+  dragMkr.on('dragend', function(ev) {
+    var newFrom = ev.target.getLatLng();
+    var newTo   = { lat: newFrom.lat + arrow._dLat, lng: newFrom.lng + arrow._dLon };
+    arrow._fromLat = newFrom.lat; arrow._fromLon = newFrom.lng;
+    arrow._toLat   = newTo.lat;   arrow._toLon   = newTo.lng;
+    // Rebinder le popup avec nouvelles coords
+    var newAngle = (Math.atan2(arrow._dLon, arrow._dLat) * 180 / Math.PI + 360) % 360;
+    arrow.eachLayer(function(layer) {
+      if (layer.getPopup) {
+        var content = layer.getPopup() ? layer.getPopup().getContent() : null;
+        if (content) {
+          // Mettre à jour les coordonnées d'origine dans le popup
+          var updated = content.replace(/[\d.]+N [\d.]+E/, newFrom.lat.toFixed(4) + 'N ' + newFrom.lng.toFixed(4) + 'E');
+          layer.setPopupContent(updated);
+        }
+      }
+    });
+  });
 
   // Stocker toujours dans marqueursSlot (slot=0 si pas de slot actif)
   if (!marqueursSlot[slot]) marqueursSlot[slot] = {};
@@ -3294,6 +3369,7 @@ function supprimerMarqueur(btn) {
     marqueursSlot[s][type] = marqueursSlot[s][type].filter(function(mkr) {
       if (mkr._tactiqueId === mkrId) {
         if (mkr._badgeMkr) map.removeLayer(mkr._badgeMkr);
+        if (mkr._dragMkr)  map.removeLayer(mkr._dragMkr);
         if (mkr.eachLayer) { mkr.eachLayer(function(l){ map.removeLayer(l); }); }
         map.removeLayer(mkr);
         return false;
@@ -3323,6 +3399,7 @@ function supprimerGroupe(type, slot) {
       console.log('[SuppGroupe] slot ' + s + ' -> ' + marqueursSlot[s][type].length + ' marqueur(s)');
       marqueursSlot[s][type].forEach(function(mkr) {
         if (mkr._badgeMkr) map.removeLayer(mkr._badgeMkr);
+        if (mkr._dragMkr)  map.removeLayer(mkr._dragMkr);
         if (mkr.eachLayer) { mkr.eachLayer(function(l){ map.removeLayer(l); }); }
         map.removeLayer(mkr);
       });
@@ -3363,7 +3440,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Empêcher Leaflet de fermer le popup avant qu'on ait terminé
     e.stopPropagation();
     e.preventDefault();
-    if (type === 'transit' || type === 'engagement') {
+    if (type === 'engagement') {
       initRotationMode(type, lat, lon, dfci, container, btn);
     } else if (type === 'propagation') {
       initPropagationMode(lat, lon, dfci, container, btn);
@@ -4365,5 +4442,8 @@ function sdpEnvoyerDFCI(code) {
     </div>
   </div>
 </div>
+
+<!-- Label angle propagation temps réel -->
+<div id="prop-angle-label" style="display:none;position:fixed;background:rgba(13,17,23,0.88);border:1px solid #cc0000;border-radius:5px;padding:3px 9px;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;color:#ff4444;pointer-events:none;z-index:9999;letter-spacing:1px;"></div>
 </body>
 </html>
