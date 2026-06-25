@@ -2632,11 +2632,31 @@ function communeAfficher(commune) {
   if (communeMarker)  { map.removeLayer(communeMarker);  communeMarker  = null; }
   if (communeContour) { map.removeLayer(communeContour); communeContour = null; }
 
-  var lat  = commune.lat;
-  var lon  = commune.lon;
   var nom  = commune.nom;
   var code = commune.insee;
 
+  // Récupérer les coordonnées officielles IGN via geo.api.gouv.fr
+  // (plus fiable que les centroïdes manuels de COMMUNES_VAR)
+  fetch('https://geo.api.gouv.fr/communes/' + code + '?fields=centre&format=json')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var lat, lon;
+      if (data && data.centre && data.centre.coordinates) {
+        lon = data.centre.coordinates[0];
+        lat = data.centre.coordinates[1];
+      } else {
+        // Fallback coordonnées locales
+        lat = commune.lat; lon = commune.lon;
+      }
+      _communeAfficherCoords(nom, code, lat, lon, commune);
+    })
+    .catch(function() {
+      // Pas de réseau → fallback local
+      _communeAfficherCoords(nom, code, commune.lat, commune.lon, commune);
+    });
+}
+
+function _communeAfficherCoords(nom, code, lat, lon, commune) {
   if (!lat || !lon) { communeInputErreur(); return; }
 
   // Code DFCI via lookup exact dans DFCI_2KM (même fonction que les véhicules)
@@ -2686,7 +2706,7 @@ function communeAfficher(commune) {
       map.fitBounds(communeContour.getBounds(), { padding:[30,30], maxZoom:14 });
     })
     .catch(function() {}); // silencieux si réseau absent
-}
+}  // fin _communeAfficherCoords
 
 function communeInputErreur() {
   var inp = document.getElementById('commune-input');
