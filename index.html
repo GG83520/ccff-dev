@@ -2663,20 +2663,37 @@ function _communeAfficherCoords(nom, code, lat, lon, commune) {
   var dfciCode = latLngToDFCI(lat, lon) || '—';
 
   // Popup
+  var hasDfci = dfciCode && dfciCode !== '—';
+  var dfciBlock = hasDfci
+    ? '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #2a3040;">'
+    + '<div style="font-size:11px;color:#6a7a8a;margin-bottom:4px;">Code DFCI</div>'
+    + '<div style="display:flex;align-items:center;gap:8px;justify-content:center;">'
+    + '<span class="sdp-dfci-code" data-code="' + dfciCode + '" '
+    + 'title="Clic droit pour envoyer dans un slot libre" '
+    + 'style="font-size:16px;font-weight:700;color:#e8a020;cursor:context-menu;'
+    + 'font-family:Barlow Condensed,sans-serif;letter-spacing:1px;">' + dfciCode + '</span>'
+    + '<button class="sdp-send-dfci" data-code="' + dfciCode + '" '
+    + 'title="Envoyer dans le premier slot libre S1-S4" '
+    + 'style="background:#1a2535;border:1px solid #4a7ab0;border-radius:4px;'
+    + 'color:#7ab3f0;font-family:Barlow Condensed,sans-serif;font-size:11px;'
+    + 'padding:2px 8px;cursor:pointer;white-space:nowrap;">→ Slot libre</button>'
+    + '</div>'
+    + '<div style="font-size:10px;color:#4a5a6a;margin-top:3px;">Clic bouton ou clic droit sur le code</div>'
+    + '</div>'
+    : '';
+
   var popupHtml =
-    '<div style="padding:8px 4px;text-align:center;">' +
+    '<div style="padding:8px 4px;text-align:center;min-width:220px;">' +
     '<div style="font-size:17px;font-weight:700;color:#e8a020;margin-bottom:4px;">' + nom + '</div>' +
     '<div style="font-size:11px;color:#8a9bb0;margin-bottom:8px;">Commune — Var (83) — INSEE ' + code + '</div>' +
     '<div style="border-top:1px solid #2a3040;padding-top:8px;">' +
     '<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;">' +
-      '<span style="color:#6a7a8a;">Code DFCI</span>' +
-      '<span style="color:#e8a020;font-weight:700;">' + dfciCode + '</span>' +
-    '</div>' +
-    '<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0;">' +
       '<span style="color:#6a7a8a;">Coordonnées</span>' +
       '<span style="color:#e0e0e0;font-size:11px;">' + lat.toFixed(4) + 'N  ' + lon.toFixed(4) + 'E</span>' +
     '</div>' +
-    '</div></div>';
+    '</div>' +
+    dfciBlock +
+    '</div>';
 
   // Marqueur géocentré — posé immédiatement, zéro latence
   communeMarker = L.marker([lat, lon], {
