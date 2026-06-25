@@ -2121,25 +2121,7 @@ function toggleModeDemo() {
   }
 }
 
-function pinValider() {
-  var saisi = document.getElementById('pin-input').value;
-  if (saisi === PIN_CODE) {
-    document.getElementById('pin-overlay').classList.remove('visible');
-    modeDemo = true;
-    appliquerMode();
-  } else {
-    document.getElementById('pin-error').textContent = 'Code incorrect — réessayer';
-    document.getElementById('pin-input').value = '';
-    document.getElementById('pin-input').focus();
-    setTimeout(function(){ document.getElementById('pin-error').textContent=''; }, 2000);
-  }
-}
-
-function pinAnnuler() {
-  document.getElementById('pin-overlay').classList.remove('visible');
-  document.getElementById('pin-input').value = '';
-  document.getElementById('pin-error').textContent = '';
-}
+// pinValider/pinAnnuler définis plus haut (version HARPON)
 
 // Variable contrôlant la simulation
 var simulationActive = false;  // Désactivée par défaut (mode exploitation)
