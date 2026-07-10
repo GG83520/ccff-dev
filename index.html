@@ -1675,7 +1675,27 @@ function buildDFCILayer2km() {
   var lg = L.layerGroup();
   if (typeof DFCI_2KM === 'undefined' || DFCI_2KM === null) return lg;
   var labelsLg = L.layerGroup();
-  L.geoJSON(DFCI_2KM, {
+
+  // ── FILTRAGE PAR VIEWPORT ──────────────────────────────────────────────────
+  // Ne charger que les carreaux visibles + marge de 20% pour anticiper le scroll
+  // Évite de créer 3827 objets SVG simultanément (cause du rendu partiel)
+  var bounds  = map.getBounds();
+  var margin  = 0.2;  // ~20% de marge autour de la vue
+  var dLat = (bounds.getNorth() - bounds.getSouth()) * margin;
+  var dLon = (bounds.getEast()  - bounds.getWest())  * margin;
+  var minLat = bounds.getSouth() - dLat;
+  var maxLat = bounds.getNorth() + dLat;
+  var minLon = bounds.getWest()  - dLon;
+  var maxLon = bounds.getEast()  + dLon;
+
+  var filteredFeatures = DFCI_2KM.features.filter(function(f) {
+    var cx = f.properties.cx, cy = f.properties.cy;
+    return cx >= minLon && cx <= maxLon && cy >= minLat && cy <= maxLat;
+  });
+
+  var filteredGeoJSON = { type:'FeatureCollection', features: filteredFeatures };
+
+  L.geoJSON(filteredGeoJSON, {
     smoothFactor: 0,
     style: function() {
       return { color:'transparent', weight:0, fillOpacity:0.001, fillColor:'transparent', opacity:0 };
@@ -1685,8 +1705,6 @@ function buildDFCILayer2km() {
       var cx   = feature.properties.cx;
       var cy   = feature.properties.cy;
       if (cx && cy) {
-        // Labels masqués — affichés par la couche WMTS IGN
-        // On garde le marker invisible pour le clic uniquement
         void(cx); void(cy); void(code);
       }
       layer.on('click', function(e) {
@@ -1798,11 +1816,16 @@ function buildDFCILayer() {
 function dfciUpdateZoom() {
   if (!dfciVisible) return;
   var zoom = map.getZoom();
-  if (zoom >= 12) {
+  if (zoom >= 11) {
+    // Zoom suffisant → afficher les carreaux 2km filtrés par viewport
+    // Reconstruire à chaque appel pour adapter la vue courante
+    if (dfciLayer2 && map.hasLayer(dfciLayer2)) map.removeLayer(dfciLayer2);
+    dfciLayer2 = buildDFCILayer2km();  // filtré sur la vue courante
+    map.addLayer(dfciLayer2);
     if (dfciLayer20 && map.hasLayer(dfciLayer20)) map.removeLayer(dfciLayer20);
-    if (dfciLayer2  && !map.hasLayer(dfciLayer2))  map.addLayer(dfciLayer2);
   } else {
-    if (dfciLayer2  && map.hasLayer(dfciLayer2))  map.removeLayer(dfciLayer2);
+    // Zoom large → mailles 20km uniquement
+    if (dfciLayer2  && map.hasLayer(dfciLayer2))  { map.removeLayer(dfciLayer2); dfciLayer2 = null; }
     if (dfciLayer20 && !map.hasLayer(dfciLayer20)) map.addLayer(dfciLayer20);
   }
 }
@@ -1828,8 +1851,9 @@ function toggleInsertPoints() {
     btn.classList.remove('active');
   } else {
     // Activer couche JS invisible (données/clics uniquement)
+    // dfciLayer2 sera construit par dfciUpdateZoom selon le zoom courant
     if (!dfciLayer20) dfciLayer20 = buildDFCILayer20();
-    if (!dfciLayer2)  dfciLayer2  = buildDFCILayer2km();
+    // Ne PAS construire dfciLayer2 ici — sera fait par dfciUpdateZoom
     dfciVisible = true;
     btn.classList.add('active');
     dfciUpdateZoom();
@@ -2019,6 +2043,17 @@ function toggleDFCI_IGN() {
 // Basculer entre 20km et 2km selon le zoom — affichage/masquage uniquement
 map.on('zoomend', function() {
   if (dfciVisible) dfciUpdateZoom();
+});
+
+// Reconstruire le layer 2km après déplacement (viewport change)
+map.on('moveend', function() {
+  if (dfciVisible && map.getZoom() >= 11) {
+    dfciUpdateZoom();  // reconstruit avec le nouveau viewport
+  }
+});
+
+map.on('zoomend', function() {  // dummy pour compatibilité
+  void(0);
   // ── F1 : adapter l'opacité du remplissage commune au niveau de zoom ──
   var opacity = communeFillOpacity(map.getZoom());
   [1, 2, 3, 4].forEach(function(n) {
