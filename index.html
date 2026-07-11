@@ -4191,11 +4191,97 @@ function sdpClearCommune() {
   document.getElementById('sdp-results').innerHTML = '';
 }
 
+// ── Recherche Autoroute / PK ──────────────────────────────────────────────────
+// Formats acceptes : "A8 PK95.3", "A8PK95", "A57 pk12,5" (insensible casse/espaces)
+// Sans decimale : position = milieu de section (PKxx = PKxx.5), marquee approximative
+function sdpParseAutoroutePK(raw) {
+  var s = raw.trim().toUpperCase().replace(/,/g, '.').replace(/\s+/g, '');
+  var m = s.match(/^(A\d{1,3})PK(\d+(\.\d+)?)$/);
+  if (!m) return null;
+  var route = m[1];
+  if (typeof AUTOROUTES_PR_VAR === 'undefined' || !AUTOROUTES_PR_VAR[route]) return null;
+  var hasDecimal = m[3] !== undefined;
+  var pk = parseFloat(m[2]);
+  if (!hasDecimal) pk += 0.5;
+  return { route: route, pk: pk, approx: !hasDecimal };
+}
+
+// Position interpolee pour un PK donne (moyenne D/G par PR, interpolation lineaire entre PR)
+function sdpAutoroutePosition(route, pk) {
+  var pts = AUTOROUTES_PR_VAR[route];
+  if (!pts || !pts.length) return null;
+  var byPr = {};
+  pts.forEach(function(p) {
+    if (!byPr[p.pr]) byPr[p.pr] = [];
+    byPr[p.pr].push(p);
+  });
+  var prs = Object.keys(byPr).map(Number).sort(function(a,b){return a-b;});
+  var prMin = prs[0], prMax = prs[prs.length-1];
+  if (pk < prMin || pk > prMax) return null;
+
+  function midpoint(pr) {
+    var arr = byPr[pr];
+    var lat = arr.reduce(function(s,p){return s+p.lat;},0) / arr.length;
+    var lon = arr.reduce(function(s,p){return s+p.lon;},0) / arr.length;
+    return { lat: lat, lon: lon };
+  }
+
+  var prLow = Math.floor(pk), prHigh = Math.ceil(pk);
+  if (prLow === prHigh) return midpoint(prLow);
+  if (!byPr[prLow] || !byPr[prHigh]) return null;
+  var a = midpoint(prLow), b = midpoint(prHigh);
+  var frac = pk - prLow;
+  return { lat: a.lat + (b.lat - a.lat) * frac, lon: a.lon + (b.lon - a.lon) * frac };
+}
+
 // ── Recherche adresse / lieu-dit ──────────────────────────────────────────────
 function sdpSearchAddr() {
   var val = document.getElementById('sdp-addr-input').value.trim();
   if (!val) return;
   var results = document.getElementById('sdp-results');
+
+  // ── Court-circuit : recherche Autoroute / PK (pas d'appel API externe) ────
+  var pkParsed = sdpParseAutoroutePK(val);
+  if (pkParsed) {
+    var pos = sdpAutoroutePosition(pkParsed.route, pkParsed.pk);
+    if (!pos) {
+      results.innerHTML = '<div class="sdp-empty">PK hors Département du Var</div>';
+      return;
+    }
+    var dfciCode = '';
+    if (typeof DFCI_2KM !== 'undefined') {
+      var best = null, bd = 999;
+      DFCI_2KM.features.forEach(function(f) {
+        var d = (f.properties.cx-pos.lon)*(f.properties.cx-pos.lon)
+              + (f.properties.cy-pos.lat)*(f.properties.cy-pos.lat);
+        if (d < bd) { bd = d; best = f; }
+      });
+      if (best) dfciCode = best.properties.c;
+    }
+    var label = pkParsed.route + ' — PK ' + (pkParsed.approx ? '≈' : '') + pkParsed.pk.toFixed(1);
+    var item = {
+      name: label,
+      sub:  pkParsed.approx ? 'Position estimée (milieu de section)' : 'Position exacte (interpolée)',
+      type: 'Autoroute', lat: pos.lat, lon: pos.lon, src: 'RTE'
+    };
+    results.innerHTML = '';
+    var col = '#ff8c42';
+    var div = document.createElement('div');
+    div.className = 'sdp-result-item';
+    div.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
+      + '<div class="sdp-result-name">' + item.name + '</div>'
+      + '<span style="font-size:10px;color:'+col+';background:'+col+'22;'
+      + 'border-radius:3px;padding:1px 5px;flex-shrink:0;margin-left:6px;'
+      + 'font-family:Barlow Condensed,sans-serif;" title="Autoroute — Point de Repère">'
+      + 'RTE</span></div>'
+      + '<div class="sdp-result-sub">' + item.sub + '</div>'
+      + (dfciCode ? '<div class="sdp-result-dfci">&#128208; '+dfciCode+'</div>' : '');
+    div.addEventListener('click', function() { sdpGoToResult(item, dfciCode); });
+    results.appendChild(div);
+    return;
+  }
+
   results.innerHTML = '<div class="sdp-loading"><span class="dfci-spinner" style="display:inline-block;vertical-align:middle;margin-right:6px"></span>Recherche...</div>';
 
   // Auto-sélection : si le champ commune a du texte mais sdpCommuneSelect est null
