@@ -4245,7 +4245,7 @@ function sdpSearchAddr() {
   if (pkParsed) {
     var pos = sdpAutoroutePosition(pkParsed.route, pkParsed.pk);
     if (!pos) {
-      results.innerHTML = '<div class="sdp-empty">PK hors Département du Var</div>';
+      results.innerHTML = '<div class="sdp-empty" style="color:#ffffff;font-weight:600;">PK hors Département du Var</div>';
       return;
     }
     var dfciCode = '';
