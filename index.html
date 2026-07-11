@@ -1675,26 +1675,17 @@ function buildDFCILayer2km() {
   var lg = L.layerGroup();
   if (typeof DFCI_2KM === 'undefined' || DFCI_2KM === null) return lg;
   var labelsLg = L.layerGroup();
-
-  // ── FILTRAGE PAR VIEWPORT ──────────────────────────────────────────────────
-  // Ne charger que les carreaux visibles + marge de 20% pour anticiper le scroll
-  // Évite de créer 3827 objets SVG simultanément (cause du rendu partiel)
   var bounds  = map.getBounds();
-  var margin  = 0.2;  // ~20% de marge autour de la vue
+  var margin  = 0.2;
   var dLat = (bounds.getNorth() - bounds.getSouth()) * margin;
   var dLon = (bounds.getEast()  - bounds.getWest())  * margin;
-  var minLat = bounds.getSouth() - dLat;
-  var maxLat = bounds.getNorth() + dLat;
-  var minLon = bounds.getWest()  - dLon;
-  var maxLon = bounds.getEast()  + dLon;
-
+  var minLat = bounds.getSouth() - dLat, maxLat = bounds.getNorth() + dLat;
+  var minLon = bounds.getWest()  - dLon, maxLon = bounds.getEast()  + dLon;
   var filteredFeatures = DFCI_2KM.features.filter(function(f) {
     var cx = f.properties.cx, cy = f.properties.cy;
     return cx >= minLon && cx <= maxLon && cy >= minLat && cy <= maxLat;
   });
-
   var filteredGeoJSON = { type:'FeatureCollection', features: filteredFeatures };
-
   L.geoJSON(filteredGeoJSON, {
     smoothFactor: 0,
     style: function() {
@@ -1705,6 +1696,8 @@ function buildDFCILayer2km() {
       var cx   = feature.properties.cx;
       var cy   = feature.properties.cy;
       if (cx && cy) {
+        // Labels masqués — affichés par la couche WMTS IGN
+        // On garde le marker invisible pour le clic uniquement
         void(cx); void(cy); void(code);
       }
       layer.on('click', function(e) {
@@ -1817,14 +1810,11 @@ function dfciUpdateZoom() {
   if (!dfciVisible) return;
   var zoom = map.getZoom();
   if (zoom >= 11) {
-    // Zoom suffisant → afficher les carreaux 2km filtrés par viewport
-    // Reconstruire à chaque appel pour adapter la vue courante
     if (dfciLayer2 && map.hasLayer(dfciLayer2)) map.removeLayer(dfciLayer2);
-    dfciLayer2 = buildDFCILayer2km();  // filtré sur la vue courante
+    dfciLayer2 = buildDFCILayer2km();
     map.addLayer(dfciLayer2);
     if (dfciLayer20 && map.hasLayer(dfciLayer20)) map.removeLayer(dfciLayer20);
   } else {
-    // Zoom large → mailles 20km uniquement
     if (dfciLayer2  && map.hasLayer(dfciLayer2))  { map.removeLayer(dfciLayer2); dfciLayer2 = null; }
     if (dfciLayer20 && !map.hasLayer(dfciLayer20)) map.addLayer(dfciLayer20);
   }
@@ -1851,9 +1841,7 @@ function toggleInsertPoints() {
     btn.classList.remove('active');
   } else {
     // Activer couche JS invisible (données/clics uniquement)
-    // dfciLayer2 sera construit par dfciUpdateZoom selon le zoom courant
     if (!dfciLayer20) dfciLayer20 = buildDFCILayer20();
-    // Ne PAS construire dfciLayer2 ici — sera fait par dfciUpdateZoom
     dfciVisible = true;
     btn.classList.add('active');
     dfciUpdateZoom();
@@ -2044,15 +2032,10 @@ function toggleDFCI_IGN() {
 map.on('zoomend', function() {
   if (dfciVisible) dfciUpdateZoom();
 });
-
-// Reconstruire le layer 2km après déplacement (viewport change)
 map.on('moveend', function() {
-  if (dfciVisible && map.getZoom() >= 11) {
-    dfciUpdateZoom();  // reconstruit avec le nouveau viewport
-  }
+  if (dfciVisible && map.getZoom() >= 11) dfciUpdateZoom();
 });
-
-map.on('zoomend', function() {  // dummy pour compatibilité
+map.on('zoomend', function() {
   void(0);
   // ── F1 : adapter l'opacité du remplissage commune au niveau de zoom ──
   var opacity = communeFillOpacity(map.getZoom());
@@ -2820,7 +2803,7 @@ var MAX_MARQUEURS = 3; // max par type par slot
 // Définition des types
 var TACTIQUE_DEF = {
   transit:    { label:'Point de Transit',   couleur:'#9b59b6', couleurBg:'#2a1040',
-                svg: '<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 730 200\"><path d=\"M50 100 L320 100\" stroke=\"#8A2BE2\" stroke-width=\"20\" fill=\"none\"/><circle cx=\"400\" cy=\"100\" r=\"80\" stroke=\"#8A2BE2\" stroke-width=\"20\" fill=\"white\"/><path d=\"M480 100 L680 100\" stroke=\"#8A2BE2\" stroke-width=\"20\" fill=\"none\"/><path d=\"M680 100 L680 80 L720 100 L680 120 Z\" fill=\"#8A2BE2\"/></svg>' },
+                svg: '<img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA3MzAgMjAwIj48cGF0aCBkPSJNNTAgMTAwIEwzMjAgMTAwIiBzdHJva2U9IiM4QTJCRTIiIHN0cm9rZS13aWR0aD0iMjAiIGZpbGw9Im5vbmUiLz48Y2lyY2xlIGN4PSI0MDAiIGN5PSIxMDAiIHI9IjgwIiBzdHJva2U9IiM4QTJCRTIiIHN0cm9rZS13aWR0aD0iMjAiIGZpbGw9IndoaXRlIi8+PHBhdGggZD0iTTQ4MCAxMDAgTDY4MCAxMDAiIHN0cm9rZT0iIzhBMkJFMiIgc3Ryb2tlLXdpZHRoPSIyMCIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik02ODAgMTAwIEw2ODAgODAgTDcyMCAxMDAgTDY4MCAxMjAgWiIgZmlsbD0iIzhBMkJFMiIvPjwvc3ZnPg==" width="73" height="20" style="display:block;"/>' },
   engagement: { label:"Point d’engagement", couleur:'#e74c3c', couleurBg:'#3a0a0a',
                 svg: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36"><polygon points="12,2 22,22 12,18 2,22" fill="#e74c3c" stroke="#fff" stroke-width="1.5"/><line x1="12" y1="18" x2="12" y2="34" stroke="#e74c3c" stroke-width="2.5" stroke-linecap="round"/></svg>' },
   codis:      { label:'PC CODIS',           couleur:'#8e44ad', couleurBg:'#2a0a40',
@@ -2864,8 +2847,8 @@ function deposerMarqueur(type, lat, lon, dfciCode, container) {
   var icon = L.divIcon({
     html: iconHtml,
     className: '',
-    iconSize: type === 'feu' ? [56,56] : type === 'harpon' ? [32,40] : type === 'transit' ? [73,20] : type === 'codis' ? [32,40] : [28,36],
-    iconAnchor: type === 'feu' ? [28,28] : type === 'harpon' ? [16,38] : type === 'transit' ? [36,10] : type === 'codis' ? [16,38] : [14,34],
+    iconSize: type === 'feu' ? [56,56] : type === 'harpon' ? [32,40] : type === 'transit' ? [72,25] : type === 'codis' ? [32,40] : [28,36],
+    iconAnchor: type === 'feu' ? [28,28] : type === 'harpon' ? [16,38] : type === 'transit' ? [36,12] : type === 'codis' ? [16,38] : [14,34],
     popupAnchor: [0, type === 'feu' ? -32 : type === 'harpon' ? -38 : type === 'transit' ? -14 : -38]
   });
 
@@ -3013,14 +2996,14 @@ function initRotationMode(type, lat, lon, dfci, container, btn) {
         + 'font-size:8px;font-weight:700;display:flex;align-items:center;'
         + 'justify-content:center;color:#fff;font-family:Arial;">' + slot + '</div>'
       : '';
-    var w = type === 'transit' ? 73 : 28;
-    var h = type === 'transit' ? 20 : 36;
+    var w = type === 'transit' ? 72 : 28;
+    var h = type === 'transit' ? 25 : 36;
     return '<div style="position:relative;display:inline-block;'
       + 'transform:rotate(' + a + 'deg);transform-origin:center center;">'
       + def.svg + slotBadge + '</div>';
   }
 
-  var sz = type === 'transit' ? [73,20] : [28,36];
+  var sz = type === 'transit' ? [72,25] : [28,36];
   var mkr = L.marker([lat, lon], {
     icon: L.divIcon({ html: makeRotIcon(0), className:'', iconSize: sz, iconAnchor: [sz[0]/2, sz[1]/2] }),
     zIndexOffset: 900
